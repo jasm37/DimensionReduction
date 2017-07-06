@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     diff_map = DiffusionMap(eps, step)
     w, x = diff_map.dim_reduction(A, ndim, param=param)
-    #w, x = dim_reduction(A, ndim, eps, step)
+    #w, x = diff_map.dim_reduction(A, ndim)
 
     ax = fig.add_subplot(122)
     plt.scatter(x[:, 0], x[:, 1], c=color, cmap=plt.cm.Spectral)

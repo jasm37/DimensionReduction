@@ -42,12 +42,30 @@ class DiffusionMap:
 
         return ker
 
-    def get_markov_chain(self, data, eps, param = None):
+    def get_diffusion_map(self, data, eps, param = None):
         # Method could also be named "get_diffusion_map"
         if param:
             H = self.get_partial_kernel(data, eps, param)
         else:
             H = self.get_kernel(data, eps)
+        #H is the kernel matrix
+        # TODO : normalization is missing(Laplace Beltrami)
+        # Normalization:
+
+        #v = np.sum(H, axis=0)
+        #w = np.sum(H, axis=1)
+        #mult = 1./np.outer(w, v.T)
+        #M = H/v[:,np.newaxis]
+        #sqrt_v = np.sqrt(v)
+        #den = np.outer(sqrt_v,sqrt_v)
+        #M = G/den
+        '''
+        v = 1./np.sqrt(np.sum(M, axis=0))
+        w = 1./np.sqrt(np.sum(M, axis=1))
+        mult = np.outer(w, v.T)
+        M = np.dot(M, mult)
+        '''
+        #M is a markov chain
         M = (H.T / H.sum(axis=1)).T
         return M
 
@@ -58,14 +76,15 @@ class DiffusionMap:
         #               knn or eps-nbhd
         # OUTPUT:   (N,ndim) array with reduced dimension
 
-        #TODO : normalization is missing(Laplace Beltrami)
-        H = self.get_markov_chain(data, self.eps, param)
+        H = self.get_diffusion_map(data, self.eps, param)
         # We get the first ndim+1 eigenvalues and discard the first one since it is 1
-        w, x = eigs(H, k=ndim + 1, which='LM')
+        w, x = eigs(H, k=ndim+1 , which='LM')
         w = w[1:ndim+1]
-
+        print x[:, 0] / x[:,2]
         # Compute data reduction according to Coifman and Lafon :
         # http://www.sciencedirect.com/science/article/pii/S1063520306000546
         # Note: take real part in case of any complex eigenvector/value
         x = (w.real ** self.step) * x[:, 1:ndim+1].real
+        #print x[:,0]
+        #x = (x.T/x[:,0]).T
         return w, x
