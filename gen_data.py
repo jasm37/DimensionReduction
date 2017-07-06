@@ -4,7 +4,6 @@ from sklearn import datasets
 
 
 def get_data(name, n_samples):
-    # note: gaussian always takes 1600 samples
     noise = 0.1
     mean = np.array([0.0, 0.0])
     covariance = np.array([[2, 0.0], [0.0, 2]])
@@ -12,19 +11,33 @@ def get_data(name, n_samples):
         'swiss':datasets.samples_generator.make_swiss_roll(n_samples=n_samples, noise=noise),
         'blobs':datasets.samples_generator.make_blobs(n_samples=n_samples, centers=3, n_features=3, random_state=0),
         's_curve':datasets.samples_generator.make_s_curve(n_samples=n_samples, noise=noise),
-        'gaussian':get_3d_clusters(mean, covariance),
+        'gaussian':get_3d_clusters(n_samples=n_samples, mean=mean, cov=covariance),
+        'plane':get_plane(n_samples=n_samples),
+        'two_planes':get_linear_surface(n_samples=n_samples),
     }[name]
 
+def get_plane(n_samples):
+    n = int(np.sqrt(n_samples))
+    x = np.linspace(-1.0, 1.0, n)
+    y = np.linspace(-2.0, 2.0, n)
+    X, Y = np.meshgrid(x, y)
+    Z = 2*X + Y
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    Z = Z.reshape(-1)
+    data = np.stack((X, Y, Z), axis=1)
+    return data, Z
 
-def get_3d_clusters(mean, covariance):
+def get_3d_clusters(n_samples, mean, cov):
+    n = int(np.sqrt(n_samples))
     multivariate_normal()
-    x = np.linspace(-4.0, 2.5, 40)
-    y = np.linspace(-2.5, 4.0, 40)
+    x = np.linspace(-4.0, 2.5, n)
+    y = np.linspace(-2.5, 4.0, n)
     X, Y = np.meshgrid(x, y)
     pos = np.empty(X.shape + (2,))
     pos[:, :, 0] = X
     pos[:, :, 1] = Y
-    rv = multivariate_normal(mean, covariance)
+    rv = multivariate_normal(mean, cov)
     Z = rv.pdf(pos)
     X = X.reshape(-1)
     Y = Y.reshape(-1)
@@ -32,6 +45,25 @@ def get_3d_clusters(mean, covariance):
     data = np.stack((X, Y, Z), axis=1)
     return data, Z
 
+def get_linear_surface(n_samples):
+    n = int(np.sqrt(n_samples/2))
+    x = np.linspace(-1.0, 1.0, n)
+    y = np.linspace(-2.0, 2.0, n)
+    X, Y = np.meshgrid(x, y)
+    z_1 = 2*X
+    z_2 = 4-2*X
+    z_1.reshape(-1)
+    z_2.reshape(-1)
+    Z = np.stack((z_1,z_2), axis=0)
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    X = np.hstack((X,X))
+    Y = np.hstack((Y,Y))
+    Z = Z.reshape(-1)
+    print Z.shape
+    print X.shape
+    data = np.stack((X, Y, Z), axis=1)
+    return data, Z
 
 def get_clustered_data():
     raise ValueError("2D plot implementation missing")
