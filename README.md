@@ -1,2 +1,2 @@
 # DimensionReduction
-Experiments for dimension reduction algorithms
+Experiments for dimension reduction algorithms, especially Diffusion maps
