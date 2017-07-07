@@ -4,6 +4,7 @@ from sklearn import datasets
 
 
 def get_data(name, n_samples):
+    # noise parameter might depened on the dataset to be produced
     noise = 0.1
     mean = np.array([0.0, 0.0])
     covariance = np.array([[2, 0.0], [0.0, 2]])
@@ -15,7 +16,9 @@ def get_data(name, n_samples):
         'plane':get_plane(n_samples=n_samples),
         'two_planes':get_linear_surface(n_samples=n_samples),
         'torus_curve':get_toroidal_helix(n_samples=n_samples),
+        'punc_sphere':get_punctured_sphere(n_samples=n_samples)
     }[name]
+
 
 def get_plane(n_samples):
     n = int(np.sqrt(n_samples))
@@ -28,6 +31,7 @@ def get_plane(n_samples):
     Z = Z.reshape(-1)
     data = np.stack((X, Y, Z), axis=1)
     return data, Z
+
 
 def get_3d_clusters(n_samples, mean, cov):
     n = int(np.sqrt(n_samples))
@@ -45,6 +49,7 @@ def get_3d_clusters(n_samples, mean, cov):
     Z = Z.reshape(-1)
     data = np.stack((X, Y, Z), axis=1)
     return data, Z
+
 
 def get_linear_surface(n_samples):
     n = int(np.sqrt(n_samples/2))
@@ -64,6 +69,7 @@ def get_linear_surface(n_samples):
     data = np.stack((X, Y, Z), axis=1)
     return data, Z
 
+
 def get_toroidal_helix(n_samples):
     # Curve on the torus
     # a: radius of the torus
@@ -81,6 +87,24 @@ def get_toroidal_helix(n_samples):
     Z = b*np.sin(k*t) + np.random.normal(noise_mean, stand_dev, size)
     data = np.stack((X,Y,Z),axis=1)
     return data, Z
+
+
+def get_punctured_sphere(n_samples):
+    # Uses trigonometric parametrization of the sphere
+    rho = 2
+    fr = 0.80 # percentage of the sphere to be shown
+    n = int(np.sqrt(n_samples))
+    p = np.linspace(0, 2*np.pi, n)
+    q = np.linspace(0, np.pi*fr, n)
+    X = rho*np.outer(np.cos(p),np.sin(q))
+    Y = rho*np.outer(np.sin(p),np.sin(q))
+    Z = rho*np.outer(np.ones(p.shape[0]),np.cos(q))
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    Z = Z.reshape(-1)
+    data = np.stack((X, Y, Z), axis=1)
+    return data, Z
+
 
 def get_clustered_data():
     raise ValueError("2D plot implementation missing")
