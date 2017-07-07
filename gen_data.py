@@ -14,6 +14,7 @@ def get_data(name, n_samples):
         'gaussian':get_3d_clusters(n_samples=n_samples, mean=mean, cov=covariance),
         'plane':get_plane(n_samples=n_samples),
         'two_planes':get_linear_surface(n_samples=n_samples),
+        'torus_curve':get_toroidal_helix(n_samples=n_samples),
     }[name]
 
 def get_plane(n_samples):
@@ -60,9 +61,25 @@ def get_linear_surface(n_samples):
     X = np.hstack((X,X))
     Y = np.hstack((Y,Y))
     Z = Z.reshape(-1)
-    print Z.shape
-    print X.shape
     data = np.stack((X, Y, Z), axis=1)
+    return data, Z
+
+def get_toroidal_helix(n_samples):
+    # Curve on the torus
+    # a: radius of the torus
+    # b: thickness of the torus
+    # k: relation between two angles that parametrize the torus
+    noise_mean = 0
+    stand_dev = 0.06
+    size = n_samples
+    a = 3
+    b = 1
+    k = 5
+    t = np.linspace(0,2*np.pi,n_samples)
+    X = (a + b*np.cos(k*t))*np.cos(t) + np.random.normal(noise_mean, stand_dev, size)
+    Y = (a + b*np.cos(k*t))*np.sin(t) + np.random.normal(noise_mean, stand_dev, size)
+    Z = b*np.sin(k*t) + np.random.normal(noise_mean, stand_dev, size)
+    data = np.stack((X,Y,Z),axis=1)
     return data, Z
 
 def get_clustered_data():
