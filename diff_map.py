@@ -4,66 +4,92 @@ from scipy.spatial import distance
 from scipy.sparse.linalg import eigsh
 from sklearn.neighbors import NearestNeighbors
 
+#TODO: add references/bibliography
 class DiffusionMap:
-    def __init__(self, eps, step):
+    def __init__(self, step=1, eps=0):
         self.eps = eps
         self.step = step
+        self.sq_distance = 0
+        self.K = 0
+        self.data = 0
 
     @staticmethod
     def get_distance_matrix(data):
         return distance.cdist(data, data, 'euclidean')
 
+    @staticmethod
+    def get_sq_distance(data):
+        return distance.cdist(data, data, 'sqeuclidean')
+
+    def get_eps_from_weight(self):
+        # According to Lafons dissertation page 33
+        # W is squared distance matrix obtained from data
+        W = self.sq_distance
+        size = W.shape[0]
+        v = np.where(W > 0, W, W.max()).min(1)
+        self.eps = np.sum(v)/size
+
     def get_kernel(self, data, eps):
         # TODO: use scikit to complete the distances(may be faster)
-        D = distance.cdist(data,data,'euclidean')
-        return np.exp(-D ** 2 / eps)
+        #D = distance.cdist(data,data,'euclidean')
+        D = self.sq_distance
+        return np.exp(-D / eps)
 
-    def get_partial_kernel(self, data, delta, param):
+    def get_partial_kernel(self, data, eps, nbhd_param):
         # TODO implement separate knn and epsilon-nbhd function to create the adjacency matrix
         # TODO compare current computation of knn with NearestNeighbourhood from scikitlearn
         # Computes kernel matrix based on eps or k-nbhd
-        # delta is the epsilon of diffusion maps
+        # 'eps' corresponds to diffusion maps
+        # 'epsilon' corresponds the nbhd radius
         num_samples = data.shape[0]
         ker = np.zeros((num_samples,num_samples))
-        dist = self.get_distance_matrix(data)
-
-        if 'k' in param:
-            k = param.get('k', 10)
+        #dist = self.get_distance_matrix(data)
+        dist = self.sq_distance
+        if 'k' in nbhd_param:
+            k = nbhd_param.get('k', 10)
             for i in xrange(num_samples):
                 temp = np.argsort(dist[i, :])[:k+1] #indices always contain i, so we take k+1
                 for j in temp:
-                    ker[i, j] = np.exp(-dist[i,j] ** 2 / delta)
-        elif 'eps' in param:
-            eps = param.get('eps', 1.0)
+                    ker[i, j] = np.exp(-dist[i,j] / eps)
+        elif 'eps' in nbhd_param:
+            epsilon = nbhd_param.get('eps', 1.0)
             for i in xrange(num_samples):
-                indices = [k for k,v in enumerate(dist[i,:]< eps) if v]
+                indices = [k for k,v in enumerate(dist[i,:]< epsilon) if v]
                 for j in indices:
-                    ker[i, j] = np.exp(-dist[i,j] ** 2 / delta)
+                    ker[i, j] = np.exp(-dist[i,j] / eps)
         else:
             raise ValueError("Unindentified nbhd type")
 
         return ker
 
-    def get_diffusion_map(self, data, eps, param = None):
-        # Method could also be named "get_diffusion_map"
-        if param:
-            W = self.get_partial_kernel(data, eps, param)
+    def set_params(self, data, nbhd_param = None):
+        self.data = data
+        self.sq_distance = self.get_sq_distance(data)
+        # if no epsilon is given compute it wrt the sq ditance(data)
+        if not self.eps: self.get_eps_from_weight()
+        eps = self.eps
+        print 'Diff. maps eps is ', eps
+        if nbhd_param:
+            self.K = self.get_partial_kernel(data, eps, nbhd_param)
         else:
-            W = self.get_kernel(data, eps)
+            self.K = self.get_kernel(data, eps)
+
+    def get_diffusion_map(self):
+        K = self.K
         # W is the kernel/weight matrix
         # Approximates Laplace Beltrami operator: alpha = 1 in Lafon's paper
-        vd = np.sum(W, axis=1)
+        vd = np.sum(K, axis=1)
         mult = np.outer(vd,vd)
-        W = W/mult
-        vd = np.sum(W, axis=1)
+        _K = K/mult
+        vd = np.sum(_K, axis=1)
         mult = np.sqrt(np.outer(vd,vd))
-        M = W/mult
+        M = _K/mult
 
         #This M is a markov chain
         #M = (W.T / W.sum(axis=1)).T
         return M
 
-    def dim_reduction(self, data, ndim, param = None):
+    def dim_reduction(self, ndim):
         # INPUT:    (N,d) data array: N is number of samples, d dimension
         #           ndim:   desired dimension (ndim<d)
         #           param: contains info about nbhd type for adjancency matrix
@@ -71,7 +97,7 @@ class DiffusionMap:
         # OUTPUT:   first 'ndim' nontrivial eigenvalues and (N,ndim) array
         #           with reduced dimension
 
-        H = self.get_diffusion_map(data, self.eps, param)
+        H = self.get_diffusion_map()
         # We get the first ndim+1 eigenvalues and discard the first one since it is 1
         w, x = eigsh(H, k=ndim+1 , which='LM', ncv=None)
         # Get decreasing order of evectors and evalues
