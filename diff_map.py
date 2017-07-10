@@ -22,12 +22,16 @@ class DiffusionMap:
         return distance.cdist(data, data, 'sqeuclidean')
 
     def get_eps_from_weight(self):
+        # Median of the distances:
+        self.eps = np.median(self.sq_distance)
+        '''
         # According to Lafons dissertation page 33
         # W is squared distance matrix obtained from data
         W = self.sq_distance
         size = W.shape[0]
         v = np.where(W > 0, W, W.max()).min(1)
         self.eps = np.sum(v)/size
+        '''
 
     def get_kernel(self, data, eps):
         # TODO: use scikit to complete the distances(may be faster)
