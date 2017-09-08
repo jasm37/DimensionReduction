@@ -76,15 +76,21 @@ def get_toroidal_helix(n_samples):
     # b: thickness of the torus
     # k: relation between two angles that parametrize the torus
     noise_mean = 0
-    stand_dev = 0.06
+    stand_dev = 0
     size = n_samples
     a = 3
     b = 1
     k = 5
     t = np.linspace(0,2*np.pi,n_samples)
-    X = (a + b*np.cos(k*t))*np.cos(t) + np.random.normal(noise_mean, stand_dev, size)
-    Y = (a + b*np.cos(k*t))*np.sin(t) + np.random.normal(noise_mean, stand_dev, size)
-    Z = b*np.sin(k*t) + np.random.normal(noise_mean, stand_dev, size)
+    # if standard dev = 0 then dont use normal dist
+    if stand_dev:
+        X = (a + b*np.cos(k*t))*np.cos(t) + np.random.normal(noise_mean, stand_dev, size)
+        Y = (a + b*np.cos(k*t))*np.sin(t) + np.random.normal(noise_mean, stand_dev, size)
+        Z = b*np.sin(k*t) + np.random.normal(noise_mean, stand_dev, size)
+    else:
+        X = (a + b * np.cos(k * t)) * np.cos(t)
+        Y = (a + b * np.cos(k * t)) * np.sin(t)
+        Z = b * np.sin(k * t)
     data = np.stack((X,Y,Z),axis=1)
     return data, Z
 
