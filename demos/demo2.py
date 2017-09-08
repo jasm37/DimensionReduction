@@ -1,4 +1,3 @@
-# Diff. Maps vs other methods:
 # For 3D plotting
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -6,11 +5,13 @@ from diff_map import DiffusionMap
 from gen_data import get_data
 from sklearn.decomposition import PCA
 
+# Diff. Maps vs other methods:
 # Compares Diff. Map dim. reduction and PCA
 
-# Pick here which data to generate for the coomparison
-sample = 'gaussian'
-A, color = get_data(sample, 1000)
+# Pick here which data to generate for the comparison, check gen_data
+# to see all possible options
+sample = 'plane'
+A, color = get_data(sample, 1500)
 
 # Plot original 3D data
 fig = plt.figure(figsize=(13, 5))
@@ -22,15 +23,18 @@ ax.scatter(A[:,0], A[:,1], A[:,2], c = color, cmap = plt.cm.Spectral)
 ndim = 2
 # parameters for diff. maps
 step = 1
-eps = 0
+# when eps = 0 then the class computes an appropriate eps according to the dataset.
+# If eps is set to 0 then the dim. reduction rep. is not good, which shows
+# the importance of this parameter.
+eps = 22
+
 # params for k nearest neighbourhood
 # params for eps nearest neighbourhood(epsilon param depends highly on the dataset)
-#nbhd_param = {'k': 50}
-# param = {'eps': 1.75}
+#nbhd_param = {'k': 30}
+#nbhd_param = {'eps': 1.75}
 
 # Diff. Map computation and plot
 diff_map = DiffusionMap(step, eps)
-#diff_map.set_params(A, nbhd_param)
 diff_map.set_params(A)
 w, x = diff_map.dim_reduction(ndim)
 
