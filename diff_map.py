@@ -27,7 +27,7 @@ class DiffusionMap:
         self.proj_dim = None
 
         # Number of neighborhoods to perform RBF interpolation
-        self.nnb = 4
+        self.nnb = 50
 
     @staticmethod
     def get_distance_matrix(data):
@@ -56,7 +56,7 @@ class DiffusionMap:
         # Computes the basic kernel matrix(without normalizations)
         # TODO: use scikit to complete the distances(may be faster)
         D = self.sq_distance
-        return np.exp(-D / eps)
+        return np.exp(-D / (eps*eps))
 
     def get_partial_kernel(self, data, eps, nbhd_param):
         # Computes kernel matrix based on eps or k-nbhd
@@ -75,13 +75,13 @@ class DiffusionMap:
             for i in range(num_samples):
                 temp = np.argsort(dist[i, :])[:k+1] #indices always contain i, so we take k+1
                 for j in temp:
-                    ker[i, j] = np.exp(-dist[i,j] / eps)
+                    ker[i, j] = np.exp(-dist[i,j] / (eps*eps))
         elif 'eps' in nbhd_param:
             rad = nbhd_param.get('eps', 1.0)
             for i in range(num_samples):
                 indices = [k for k,v in enumerate(dist[i,:]< rad) if v]
                 for j in indices:
-                    ker[i, j] = np.exp(-dist[i,j] / eps)
+                    ker[i, j] = np.exp(-dist[i,j] / (eps*eps))
         else:
             raise ValueError("Unindentified nbhd type")
 
@@ -186,7 +186,7 @@ class DiffusionMap:
         data = self.data
         x_vec = x.reshape(1, x.shape[0])
         d_vec = self._get_sq_distance(x_vec, data)
-        w_vec = np.exp(-d_vec / self.eps)
+        w_vec = np.exp(-d_vec / (self.eps*self.eps))
         sum_w = np.sum(w_vec)
         k_vec = w_vec / sum_w
         proj_point = np.matmul(self.eigvec.T,k_vec.T)
