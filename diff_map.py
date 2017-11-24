@@ -29,7 +29,6 @@ class DiffusionMap:
         # Number of neighborhoods to perform RBF interpolation
         self.nnb = 4
 
-
     @staticmethod
     def get_distance_matrix(data):
         return distance.cdist(data, data, 'euclidean')
@@ -191,6 +190,7 @@ class DiffusionMap:
         sum_w = np.sum(w_vec)
         k_vec = w_vec / sum_w
         proj_point = np.matmul(self.eigvec.T,k_vec.T)
+        proj_point = (proj_point.T*self.eigval).T
         return proj_point
 
     def param_from_indices(self, indices, ndim):
@@ -210,6 +210,7 @@ class DiffusionMap:
         # Output: interpolated point in Rn
         k = self.nnb
         # compute distances between data and point
+        print("x size is ", x.shape)
         x_vec = x.reshape(1,x.shape[0])
         dist_x = self._get_sq_distance(x_vec, self.proj_data).reshape(-1)
         # Sorts distances
@@ -217,6 +218,8 @@ class DiffusionMap:
         interp_y = self.data[temp,:]
         interp_x = self.proj_data[temp,:]
         pred = []
+        local_eps = np.median(dist_x[:k])
+        #local_eps = 4
         # For each dimension in the output perform radius basis function(gaussian) interpolation
         for j in range(interp_y.shape[1]):
             # additionally, an eps parameter can be defined for the gaussian distribution
