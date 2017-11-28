@@ -1,74 +1,35 @@
-import scipy.spatial.distance as dist
-import scipy.sparse.linalg
-
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from gen_data import get_data
-from numpy import *
+import numpy as np
 from diff_map import DiffusionMap
+from pars_rep_dm import compute_res
 
 ## First working draft of parsimonious representation of DM eigenvectors
 ## Reference:
-##  http://ronen.net.technion.ac.il/publications/journal-publications/
+##  https://arxiv.org/abs/1505.06118
 ## and main matlab code :
 ##  http://ronen.net.technion.ac.il/files/2016/07/DsilvaACHA.zip
-
-
-def local_linear_regression(Y, X, eps_med_scale):
-    n = X.shape[0]
-    # Compute local kernel
-    K = dist.squareform(dist.pdist(X))
-    eps = np.median(K)/eps_med_scale
-    W = np.exp(-np.square(K)/eps**2)
-    L = np.zeros((n, n))
-    aux2 = np.ones((X.shape[0], 1))
-
-    # Compute local fit for each data point
-    for i in range(n):
-        aux = X - np.tile(X[i, :],(n, 1))
-        Xx = np.hstack((aux2, aux))
-        Xx2 = Xx.T * np.tile(W[i,:], (Xx.shape[1], 1))
-        # Solve least squares problem
-        A = scipy.linalg.lstsq(Xx2 @ Xx , Xx2)[0]
-        L[i,:] = A[0,:]
-
-    # Functional approximation
-    FX = L @ Y
-
-    # leave-one-out cross-validation errors
-    RES = np.sqrt(np.mean((Y - FX)*(Y - FX))) / np.std(Y)
-    return FX, RES
-
 
 sample = 'two_planes'
 data, color = get_data(sample, 1000)
 
-ndim = 12
+ndim = 10
 step = 1
 eps=0
 
-# params for eps nearest neighbourhood(epsilon param depends highly on the dataset)
-nbhd_param = None
-# nbhd_param = {'eps': 1.75}
-
+# DM constructor and main parameters
 diff_map = DiffusionMap(step, eps)
-diff_map.set_params(data, nbhd_param)
-# D contains eigenvalues and V resp. eigenvectors
+diff_map.set_params(data)
+
+# D contains DM eigenvalues and V resp. eigenvectors
 D, V = diff_map.dm_basis(ndim)
 
-
 # Linear regression kernel scale
-eps_med_scale = 3
+eps_med_scale = 5
+# Compute residuals given the eigvectors
+RES = compute_res(V, eps_med_scale)
 
-# Compute cross-validation error and residuals according to reference
-n = V.shape[1]
-RES = np.zeros((n-1,1))
-RES[0] = 1
-for i in range(1,n-1):
-    _, RES[i] = local_linear_regression(V[:,i], V[:, :i], eps_med_scale)
-
-
-RES = np.squeeze(RES)
 print("Unsorted Residuals: ",RES)
 indices = np.argsort(RES)
 indices = indices[::-1]
