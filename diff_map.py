@@ -42,15 +42,16 @@ class DiffusionMap:
         # and Lafons suggestion are implemented
 
         # Median of the distances:
-        self.eps = np.median(self.sq_distance)
+        self.eps = np.sqrt(np.median(self.sq_distance))
         '''
         # According to Lafons dissertation page 33
         # W is squared distance matrix obtained from data
         W = self.sq_distance
         size = W.shape[0]
         v = np.where(W > 0, W, W.max()).min(1)
-        self.eps = np.sum(v)/size
+        self.eps = np.sqrt(np.sum(v)/size)
         '''
+
 
     def get_kernel(self,  eps):
         # Computes the basic kernel matrix(without normalizations)
@@ -105,7 +106,7 @@ class DiffusionMap:
     def get_diffusion_map(self):
         # Computes normalized kernel of DM
 
-        # K is the matrix exp(-d^2/eps), where d is the distances matrix
+        # K is the matrix exp(-d^2/eps^2), where d is the distances matrix
         K = self.K
         # M is the kernel/weight matrix
         # Approximates Laplace Beltrami operator: alpha = 1 in Lafon's paper
@@ -147,6 +148,35 @@ class DiffusionMap:
         self.eigval = w[1:]
         self.eigvec = x[:, 1:]
 
+    def constructDifMap(self, ndim):
+        K = self.K
+        alpha = 1
+
+        vd = np.sum(K, axis=1)
+        vd = np.power(vd, -alpha)
+        diag = np.diag(vd)
+        _K = diag @ K @ diag
+
+        #vd = np.sum(_K, axis=0)
+        vd = np.sum(_K, axis=1)
+        vd = 1 / np.sqrt(vd)
+        diag = np.diag(vd)
+        M = diag @ _K @ diag
+
+        self.proj_dim = ndim
+        # We get the first ndim+1 eigenvalues and discard the first one since it is 1
+        w, x = eigsh(M, k=ndim + 1, which='LM', ncv=None)
+        x = diag @ x
+        norm_x = np.diag(1/LA.norm(x,axis=0))
+        x = x @ norm_x
+
+        # Get decreasing order of evectors and evalues
+        w = w[::-1]
+        x = x[:, ::-1]
+        # First eigenvalue/vector contains no info so it is ignored
+        self.eigval = w[1:]
+        self.eigvec = x[:, 1:]
+
     def dim_reduction(self, ndim):
         # Input:    (N,d) data array: N is number of samples, d dimension
         #           ndim:   desired dimension (ndim<d)
@@ -158,7 +188,8 @@ class DiffusionMap:
         if self.eigvec is not None and self.eigval is not None:
             pass
         else:
-            self.compute_eigdecomp(ndim)
+            #self.compute_eigdecomp(ndim)
+            self.constructDifMap(ndim)
 
         x = self.eigvec
         w = self.eigval
@@ -175,7 +206,8 @@ class DiffusionMap:
         if self.eigvec is not None and self.eigval is not None:
             pass
         else:
-            self.compute_eigdecomp(n_components)
+            #self.compute_eigdecomp(n_components)
+            self.constructDifMap(n_components)
         return self.eigval[:n_components], self.eigvec[:,:n_components]
 
     def nystrom_ext(self, x):
