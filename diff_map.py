@@ -10,23 +10,23 @@ class DiffusionMap:
     def __init__(self, step=1, eps=0):
         self.eps = eps
         self.step = step
-        self.sq_distance = 0
-        self.K = None
+        self.sq_distance = []
+        self.K = []
 
         # Data array
-        self.data = None
+        self.data = []
 
         # Eigvectors and eigvalues of DM kernel decomp
-        self.eigvec = None
-        self.eigval = None
+        self.eigvec = []
+        self.eigval = []
 
         # Array containing projection of data into reduced space
-        self.proj_data = None
+        self.proj_data = []
         # Dimension of the projection space.
         # This changes everytime dim_reduction is called
-        self.proj_dim = None
+        self.proj_dim = []
 
-        # Number of neighborhoods to perform RBF interpolation
+        # Number of neighbourhoods to perform RBF interpolation
         self.nnb = 50
 
     @staticmethod
@@ -185,7 +185,7 @@ class DiffusionMap:
         # Output:   first 'ndim' nontrivial eigenvalues and (N,ndim) array
         #           with reduced dimension
 
-        if self.eigvec is not None and self.eigval is not None:
+        if self.eigvec and self.eigval:
             pass
         else:
             #self.compute_eigdecomp(ndim)
@@ -203,7 +203,7 @@ class DiffusionMap:
         #
         # Output:   first 'ndim' nontrivial eigenvalues and (N,ndim) array
         #           with reduced dimension
-        if self.eigvec is not None and self.eigval is not None:
+        if self.eigvec and self.eigval:
             pass
         else:
             #self.compute_eigdecomp(n_components)
