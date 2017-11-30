@@ -37,9 +37,13 @@ def local_linear_regression(Y, X, eps_med_scale):
 def compute_res(V, eps_scale=5):
     # Compute cross-validation error and residuals according to reference
     n = V.shape[1]
-    RES = np.zeros((n, 1))
+    RES = np.zeros(n)
     RES[0] = 1
     for i in range(1, n):
         _, RES[i] = local_linear_regression(V[:, i], V[:, :i], eps_scale)
 
-    return np.squeeze(RES)
+    # Sort eigvec indices to obtain pars. DM rep.
+    indices = np.argsort(RES)
+    indices = indices[::-1]
+
+    return np.squeeze(RES), indices

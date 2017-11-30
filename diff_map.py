@@ -3,9 +3,11 @@ import numpy.linalg as LA
 from scipy.spatial import distance
 from scipy.interpolate import griddata, Rbf
 from scipy.sparse.linalg import eigsh
-from sklearn.neighbors import NearestNeighbors
+from scipy.linalg import eigh
+from pars_rep_dm import compute_res
+import time as tm
 
-#TODO: add references/bibliography
+#TODO: add MORE references/bibliography
 class DiffusionMap:
     def __init__(self, step=1, eps=0):
         self.eps = eps
@@ -51,7 +53,6 @@ class DiffusionMap:
         v = np.where(W > 0, W, W.max()).min(1)
         self.eps = np.sqrt(np.sum(v)/size)
         '''
-
 
     def get_kernel(self,  eps):
         # Computes the basic kernel matrix(without normalizations)
@@ -148,7 +149,7 @@ class DiffusionMap:
         self.eigval = w[1:]
         self.eigvec = x[:, 1:]
 
-    def constructDifMap(self, ndim):
+    def constructDifMap(self, ndim, pars=False):
         K = self.K
         alpha = 1
 
@@ -164,20 +165,36 @@ class DiffusionMap:
         M = diag @ _K @ diag
 
         self.proj_dim = ndim
-        # We get the first ndim+1 eigenvalues and discard the first one since it is 1
+        # Compute first ndim+1 eigenvalues and discard the first one since it is trivial
+        start = tm.time()
         w, x = eigsh(M, k=ndim + 1, which='LM', ncv=None)
-        x = diag @ x
-        norm_x = np.diag(1/LA.norm(x,axis=0))
-        x = x @ norm_x
+        end = tm.time()
+        print("Eigenvectors computation took ", end-start, "s")
 
         # Get decreasing order of evectors and evalues
         w = w[::-1]
         x = x[:, ::-1]
-        # First eigenvalue/vector contains no info so it is ignored
-        self.eigval = w[1:]
-        self.eigvec = x[:, 1:]
 
-    def dim_reduction(self, ndim):
+        x = diag @ x
+        norm_x = np.diag(1/LA.norm(x,axis=0))
+        x = x @ norm_x
+
+        # first eigenvector/value is trivial
+        w = w[1:]
+        x = x[:, 1:]
+
+        # Compute parsimonious representation if needed
+        if pars:
+            # Compute residuals given the eigvectors
+            _, indices = compute_res(x)
+            w = w[indices]
+            x = x[:,indices]
+
+        # Assign to member variables
+        self.eigval = w
+        self.eigvec = x
+
+    def dim_reduction(self, ndim, pars=False):
         # Input:    (N,d) data array: N is number of samples, d dimension
         #           ndim:   desired dimension (ndim<d)
         #           param: contains info about nbhd type for adjancency matrix
@@ -185,55 +202,51 @@ class DiffusionMap:
         # Output:   first 'ndim' nontrivial eigenvalues and (N,ndim) array
         #           with reduced dimension
 
-        if self.eigvec and self.eigval:
-            pass
-        else:
-            #self.compute_eigdecomp(ndim)
-            self.constructDifMap(ndim)
+        if self.eigvec == [] and self.eigval == []:
+            # self.compute_eigdecomp(ndim)
+            self.constructDifMap(ndim, pars)
 
         x = self.eigvec
         w = self.eigval
         # Compute data reduction according to Coifman and Lafon :
         # http://www.sciencedirect.com/science/article/pii/S1063520306000546
-        self.proj_data = y = (w[0:ndim]**self.step) * x[:, 0:ndim]
-        return w, y
+        self.proj_data = (w[0:ndim]**self.step) * x[:, 0:ndim]
+        return w, self.proj_data
 
-    def dm_basis(self, n_components):
+    def dm_basis(self, n_components, pars=False):
         # Input:    (N,d) data array: N is number of samples, d dimension
         #
         # Output:   first 'ndim' nontrivial eigenvalues and (N,ndim) array
         #           with reduced dimension
-        if self.eigvec and self.eigval:
-            pass
-        else:
-            #self.compute_eigdecomp(n_components)
-            self.constructDifMap(n_components)
+        if self.eigvec == [] and self.eigval == []:
+            # self.compute_eigdecomp(n_components)
+            self.constructDifMap(n_components, pars)
+
+        x = self.eigvec
+        w = self.eigval
+
+        # Compute data reduction according to Coifman and Lafon :
+        # http://www.sciencedirect.com/science/article/pii/S1063520306000546
+        self.proj_data = (w[0:n_components] ** self.step) * x[:, 0:n_components]
         return self.eigval[:n_components], self.eigvec[:,:n_components]
 
-    def nystrom_ext(self, x):
-        # Nyström extension for outlier points.
-        # If the original space is Rn and projection space Rd,
-        # then this function maps outliers of the data from Rn to Rd
-        # similar to the DMAP dim. reduction on the data
-        data = self.data
-        x_vec = x.reshape(1, x.shape[0])
-        d_vec = self._get_sq_distance(x_vec, data)
-        w_vec = np.exp(-d_vec / (self.eps*self.eps))
-        sum_w = np.sum(w_vec)
-        k_vec = w_vec / sum_w
-        proj_point = np.matmul(self.eigvec.T,k_vec.T)
-        proj_point = (proj_point.T*self.eigval).T
-        return proj_point
-
-    def param_from_indices(self, indices, ndim):
+    def param_from_indices(self, indices, ndim, pars=True):
         # Given an array of indices and decreasingly ordered array of eigvectors,
         # computes the dimension reduction using the selected eigvectors form the index array
         indices = np.asarray(indices)
         indices = np.squeeze(indices)
-        self.compute_eigdecomp(ndim=10)
+        #self.compute_eigdecomp(ndim=10)
+        if self.eigvec == [] and self.eigval == []:
+            # self.compute_eigdecomp(ndim)
+            self.constructDifMap(ndim, pars)
+        #self.constructDifMap(ndim)
         w, x = self.eigval[indices], self.eigvec[:,indices]
         y = (w[0:ndim] ** self.step) * x[:, 0:ndim]
         return y
+
+    def permute_indices(self, indices):
+        self.eigval = self.eigval[indices]
+        self.eigvec = self.eigvec[:,indices]
 
     def rbf_interpolate(self, x):
         # Interpolates from proj./diff. space to orig. space
@@ -242,8 +255,8 @@ class DiffusionMap:
         # Output: interpolated point in Rn
         k = self.nnb
         # compute distances between data and point
-        print("x size is ", x.shape)
-        x_vec = x.reshape(1,x.shape[0])
+        #x_vec = x.reshape(1,x.shape[0])
+        x_vec = x
         dist_x = self._get_sq_distance(x_vec, self.proj_data).reshape(-1)
         # Sorts distances
         temp = np.argsort(dist_x)[:k]
