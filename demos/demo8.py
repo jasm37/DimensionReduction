@@ -11,8 +11,18 @@ from pars_rep_dm import compute_res
 ## and main matlab code :
 ##  http://ronen.net.technion.ac.il/files/2016/07/DsilvaACHA.zip
 
-sample = 'two_planes'
-data, color = get_data(sample, 1000)
+sample = 'plane'
+data, color = get_data(sample, 2000)
+'''
+A = np.random.rand(500,3)
+sc_x = 4
+sc_y = 1
+A[:,0] = sc_x * A[:,0]
+A[:,1] = sc_y * A[:,1]
+A[:,2] = 3
+data = A
+color = data[:,0]
+'''
 
 ndim = 10
 step = 1
@@ -28,7 +38,7 @@ D, V = diff_map.dm_basis(ndim)
 # Linear regression kernel scale
 eps_med_scale = 5
 # Compute residuals given the eigvectors
-RES = compute_res(V, eps_med_scale)
+RES, _ = compute_res(V, eps_med_scale)
 
 print("Unsorted Residuals: ",RES)
 indices = np.argsort(RES)
