@@ -247,28 +247,3 @@ class DiffusionMap:
     def permute_indices(self, indices):
         self.eigval = self.eigval[indices]
         self.eigvec = self.eigvec[:,indices]
-
-    def rbf_interpolate(self, x):
-        # Interpolates from proj./diff. space to orig. space
-        # Original space : Rn, projection space: Rd, where d<n
-        # Input : point in Rd
-        # Output: interpolated point in Rn
-        k = self.nnb
-        # compute distances between data and point
-        #x_vec = x.reshape(1,x.shape[0])
-        x_vec = x
-        dist_x = self._get_sq_distance(x_vec, self.proj_data).reshape(-1)
-        # Sorts distances
-        temp = np.argsort(dist_x)[:k]
-        interp_y = self.data[temp,:]
-        interp_x = self.proj_data[temp,:]
-        pred = []
-        local_eps = np.median(dist_x[:k])
-        #local_eps = 4
-        # For each dimension in the output perform radius basis function(gaussian) interpolation
-        for j in range(interp_y.shape[1]):
-            # additionally, an eps parameter can be defined for the gaussian distribution
-            # For more details check Rbf docu in numpy python
-            rbfi = Rbf(*interp_x.T, interp_y[:,j], function="gaussian")
-            pred.append(rbfi(*x_vec.T))
-        return np.asarray(pred), temp
