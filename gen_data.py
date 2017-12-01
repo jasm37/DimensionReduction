@@ -16,7 +16,8 @@ def get_data(name, n_samples):
         'plane':get_plane(n_samples=n_samples),
         'two_planes':get_linear_surface(n_samples=n_samples),
         'torus_curve':get_toroidal_helix(n_samples=n_samples),
-        'punc_sphere':get_punctured_sphere(n_samples=n_samples)
+        'punc_sphere':get_punctured_sphere(n_samples=n_samples),
+        '4dcube':get_4dcube(n_samples=n_samples)
     }[name]
 
 
@@ -52,6 +53,20 @@ def get_3d_clusters(n_samples, mean, cov):
     X = X.reshape(-1)
     Y = Y.reshape(-1)
     Z = Z.reshape(-1)
+    data = np.stack((X, Y, Z), axis=1)
+    return data, Z
+
+
+def get_4dcube(n_samples):
+    rp = np.random.random((4, n_samples))
+    X = rp[0, :]
+    Y = rp[1, :]
+    Z = rp[2, :]
+    W = np.ones(n_samples)
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    Z = Z.reshape(-1)
+    W = W.reshape(-1)
     data = np.stack((X, Y, Z), axis=1)
     return data, Z
 
