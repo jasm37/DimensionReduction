@@ -48,8 +48,11 @@ nys_pred = []
 #pred.append(np.squeeze(diff_map.nystrom_ext(B[1,:])))
 #pred.append(dm.nystrom_ext(B[0,:]))
 #pred.append(dm.nystrom_ext(B[1,:]))
-nys_pred.append(nystrom_ext(B[0,:], A, dm.eps, w, x))
-nys_pred.append(nystrom_ext(B[1,:], A, dm.eps, w, x))
+
+#nys_pred.append(nystrom_ext(B[0,:], A, dm.eps, w, x))
+nys_pred.append(nystrom_ext(B[0,:], A, dm.eps, w, dm.proj_data[:,:2]))
+#nys_pred.append(nystrom_ext(B[1,:], A, dm.eps, w, x))
+nys_pred.append(nystrom_ext(B[1,:], A, dm.eps, w, dm.proj_data[:,:2]))
 coord, _ = poly_rbf(B[0,:], A, dm_coord[:,:2], nnbhd=10)
 pred.append(coord)
 coord, _ = poly_rbf(B[1,:], A, dm_coord[:,:2], nnbhd=10)

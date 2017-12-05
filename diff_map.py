@@ -150,21 +150,28 @@ class DiffusionMap:
         self.eigvec = x[:, 1:]
 
     def constructDifMap(self, ndim, pars=False):
+        self.proj_dim = ndim
         K = self.K
         alpha = 1
 
+        # Normalization:
+        # Approximates geometry without influence of density
         vd = np.sum(K, axis=1)
         vd = np.power(vd, -alpha)
         diag = np.diag(vd)
         _K = diag @ K @ diag
 
-        #vd = np.sum(_K, axis=0)
+
+        # Compute symmetric kernel (adjoint to the original one):
+        # Better computation of eigenvalues and eigenvectors
         vd = np.sum(_K, axis=1)
         vd = 1 / np.sqrt(vd)
         diag = np.diag(vd)
         M = diag @ _K @ diag
+        #M = (M + M.T)/2
 
-        self.proj_dim = ndim
+
+
         # Compute first ndim+1 eigenvalues and discard the first one since it is trivial
         start = tm.time()
         w, x = eigsh(M, k=ndim + 1, which='LM', ncv=None)
@@ -175,6 +182,7 @@ class DiffusionMap:
         w = w[::-1]
         x = x[:, ::-1]
 
+        # Get original eigenvector(instead of the one from the symmetric kernel)
         x = diag @ x
         norm_x = np.diag(1/LA.norm(x,axis=0))
         x = x @ norm_x

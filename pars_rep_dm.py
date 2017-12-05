@@ -45,5 +45,7 @@ def compute_res(V, eps_scale=5):
     # Sort eigvec indices to obtain pars. DM rep.
     indices = np.argsort(RES)
     indices = indices[::-1]
-
+    print("Initial order or residuals is : ", RES)
+    print("Sorted residuals are : ", RES[indices])
+    print("Respective sorted indices are: ", indices)
     return np.squeeze(RES), indices
