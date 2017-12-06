@@ -2,6 +2,7 @@
 import numpy as np
 from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
 import scipy.spatial.distance as dist
+import scipy.sparse.linalg as ssl
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -22,6 +23,33 @@ def nystrom_ext(x, data, eps, eigval, eigvec):
     #diag_mat = np.diag(1/eigval)
     #proj_point = diag_mat @ proj_point
     return np.squeeze(proj_point)
+
+def geom_harmonics(x, data, fdata, eps, neig):
+    n_elems = fdata.shape[1]
+    n_fdim = fdata.shape[0]
+    x_vec = x.reshape(1, x.shape[0])
+    dist_vec = dist.cdist(x_vec, data, 'sqeuclidean')
+    dist_matrix = dist.cdist(data, data, 'sqeuclidean')
+    ker_matrix = np.exp(-dist_matrix / eps)
+    ker_vec = np.exp(-dist_vec / eps)
+    eigval, eigvec = ssl.eigsh(ker_matrix, k=neig, which='LM', ncv=None)
+    eigval, eigvec = eigval[::-1], eigvec[:,::-1]
+    ext_eigvec = ker_vec @ eigvec / eigval
+    ext_array = np.zeros(n_elems)
+    proj_farray = np.zeros((n_elems,n_fdim))
+    s_list = range(neig)#### s_list might change for multiscale methods
+    for i in range(n_elems):
+        proj_fdata = 0
+        ext_fdata = 0
+        for j in s_list:
+            eigv = eigvec[:, j]
+            proj_coeff = fdata[:, i] @ eigv
+            proj_fdata += proj_coeff * eigv
+            ext_fdata += proj_coeff * ext_eigvec[:,j]
+        ext_array[i] = ext_fdata
+        proj_farray[i,:] = proj_fdata
+
+    return ext_array, proj_farray
 
 
 def rbf_interpolate(x, data, fdata, nnbhd=20):
