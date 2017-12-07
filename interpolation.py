@@ -7,6 +7,108 @@ import scipy.sparse.linalg as ssl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+class GeometricHarmonics():
+    # References:
+    #   -Main paper:
+    #       -Geometric harmonics: A novel tool for multiscale out-of-sample extension of empirical functions
+    #           https://www.sciencedirect.com/science/article/pii/S1063520306000522
+    #   -Other helpful sources:
+    #       -Data Fusion and Multicue Data Matching by Diffusion Maps
+    #           http://ieeexplore.ieee.org/document/1704834/
+    #       -Reduced Models in Chemical Kinetics via Nonlinear Data-Mining
+    #           https://arxiv.org/pdf/1307.6849.pdf
+
+    def __init__(self, data, fdata, eps, neig):
+        self.eps = eps
+        self.neig = neig
+        # data(x) is domain variables, and fdata(f(x)) is the resp. image
+        self.data = data
+        self.fdata = fdata
+        #Number of dimensions of f(x)
+        self.n_fdim = fdata.shape[1]
+        self.n_elems = fdata.shape[0]
+        self.dist_mat = dist.cdist(data, data, 'sqeuclidean')
+        # Maximum number of iterations for multiscale method
+        self.max_count = 20
+
+        self.fro_error = 0
+        self.eigval = []
+        self.eigvec = []
+        self.ker_matrix = []
+        self.proj_fdata = []
+        self.proj_coeffs = []
+
+    def _compute_eigv(self, ker_mat, neig):
+        eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=None)
+        self.eigval, self.eigvec = eigval[::-1], eigvec[:, ::-1]
+        return self.eigval, self.eigvec
+
+    def fit(self):
+        self.ker_matrix = np.exp(-self.dist_mat / self.eps)
+        self.eigval, self.eigvec = self._compute_eigv(self.ker_matrix, self.neig)
+        self.proj_coeffs = (self.fdata.T @ self.eigvec).T
+        proj_farray = np.zeros((self.n_fdim, self.n_elems))
+        for i in range(self.n_fdim):
+            proj_farray[i,:] = np.sum(self.eigvec*self.proj_coeffs[:,i], axis=1)
+        self.proj_fdata = proj_farray
+        self.fro_error = np.linalg.norm(self.proj_fdata.T-self.fdata)
+
+    def interpolate(self, x, eps=None):
+        # If no eps is given then use self.eps
+        eps = eps if eps is not None else self.eps
+        x_vec = x.reshape(1, x.shape[0])
+        dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
+        ker_vec = np.exp(-dist_vec / eps)
+        # Compute extension of eigvectors
+        ext_eigvec = ker_vec @ self.eigvec / self.eigval
+        # Extension array for values to be interpolated
+        ext_array = np.zeros(self.n_fdim)
+        for i in range(self.n_fdim):
+            ext_array[i] = np.sum(self.proj_coeffs[:,i]*ext_eigvec, axis=1)
+
+        return ext_array, self.proj_fdata
+
+    def mult_interpolate(self, *args, eps=None):
+        # If no eps is given then use self.eps
+        eps = eps if eps is not None else self.eps
+        x_array = np.asarray(args)
+        num_interpolands = x_array.shape[0]
+        #x_vec = x.reshape(1, x.shape[0])
+        x_vec = x_array
+        dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
+        ker_vec = np.exp(-dist_vec / eps)
+        # Compute extension of eigvectors
+        ext_eigvec = ker_vec @ self.eigvec / self.eigval
+        # Extension array for values to be interpolated
+        ext_array = np.zeros((num_interpolands, self.n_fdim))
+        for i in range(self.n_fdim):
+            ext_array[:,i] = np.sum(self.proj_coeffs[:, i] * ext_eigvec, axis=1)
+
+        return ext_array, self.proj_fdata
+
+    def multiscale_fit(self, error):
+        if self.fro_error == 0:
+            self.fit()
+
+        count = 1
+        eps_list = [self.eps]
+        error_list = [self.fro_error]
+        while self.fro_error > error and count < self.max_count:
+            count += 1
+            self.eps /= 2
+            self.fit()
+            eps_list.append(self.eps)
+            error_list.append(self.fro_error)
+
+        if count == self.max_count:
+            pos = np.argmin(error_list)
+            self.eps = eps_list[pos]
+            self.fit()
+
+
+        print("Multiscale fit stopped after ", count, " out of ", self.max_count," iterations, eps ", self.eps, " and error ", self.fro_error)
+
+
 def nystrom_ext(x, data, eps, eigval, eigvec):
     # Nyström extension for outlier points.
     # If the original space is Rn and projection space Rd,
@@ -25,8 +127,8 @@ def nystrom_ext(x, data, eps, eigval, eigvec):
     return np.squeeze(proj_point)
 
 def geom_harmonics(x, data, fdata, eps, neig):
-    n_elems = fdata.shape[1]
-    n_fdim = fdata.shape[0]
+    n_fdim = fdata.shape[1]
+    n_elems = fdata.shape[0]
     x_vec = x.reshape(1, x.shape[0])
     dist_vec = dist.cdist(x_vec, data, 'sqeuclidean')
     dist_matrix = dist.cdist(data, data, 'sqeuclidean')
@@ -36,9 +138,9 @@ def geom_harmonics(x, data, fdata, eps, neig):
     eigval, eigvec = eigval[::-1], eigvec[:,::-1]
     ext_eigvec = ker_vec @ eigvec / eigval
     ext_array = np.zeros(n_elems)
-    proj_farray = np.zeros((n_elems,n_fdim))
+    proj_farray = np.zeros((n_fdim,n_elems))
     s_list = range(neig)#### s_list might change for multiscale methods
-    for i in range(n_elems):
+    for i in range(n_fdim):
         proj_fdata = 0
         ext_fdata = 0
         for j in s_list:
@@ -50,6 +152,17 @@ def geom_harmonics(x, data, fdata, eps, neig):
         proj_farray[i,:] = proj_fdata
 
     return ext_array, proj_farray
+
+def multiscale_gm(x, data, fdata, eps, neig ,error):
+    var_eps = eps
+    proj_error = error + 1
+    print("Error is ", error)
+    while proj_error > error:
+        sol_arr, proj_fdata = geom_harmonics(x, data, fdata, var_eps, neig)
+        proj_error = np.linalg.norm(proj_fdata.T-fdata)
+        var_eps /= 2
+        print("Eps is : ", var_eps, ", proj_error is ", proj_error, ", maximum error is ", np.max(proj_fdata.T-fdata) )
+    return sol_arr, proj_fdata
 
 
 def rbf_interpolate(x, data, fdata, nnbhd=20):
