@@ -29,8 +29,7 @@ class DiffusionMap:
         self.proj_dim = []
 
         # Number of neighbourhoods to perform RBF interpolation
-        self.nnb = 50
-
+        self.nnb = 2
     @staticmethod
     def get_distance_matrix(data):
         return distance.cdist(data, data, 'euclidean')
@@ -54,7 +53,7 @@ class DiffusionMap:
         self.eps = np.sqrt(np.sum(v)/size)
         '''
 
-    def get_kernel(self,  eps):
+    def get_kernel(self, eps):
         # Computes the basic kernel matrix(without normalizations)
         # TODO: use scikit to complete the distances(may be faster)
         D = self.sq_distance
@@ -161,6 +160,9 @@ class DiffusionMap:
         diag = np.diag(vd)
         _K = diag @ K @ diag
 
+        vk = np.sum(_K, axis=1)
+        diag_vk = np.diag(1/vk)
+        _K = _K @ diag_vk
 
         # Compute symmetric kernel (adjoint to the original one):
         # Better computation of eigenvalues and eigenvectors
@@ -176,7 +178,7 @@ class DiffusionMap:
         start = tm.time()
         w, x = eigsh(M, k=ndim + 1, which='LM', ncv=None)
         end = tm.time()
-        print("Eigenvectors computation took ", end-start, "s")
+        print("DM coordinates computation took ", end-start, "s")
 
         # Get decreasing order of evectors and evalues
         w = w[::-1]
@@ -193,10 +195,13 @@ class DiffusionMap:
 
         # Compute parsimonious representation if needed
         if pars:
+            start = tm.time()
             # Compute residuals given the eigvectors
             _, indices = compute_res(x)
             w = w[indices]
             x = x[:,indices]
+            end = tm.time()
+            print("Parsimonious rep. of DM took ", end - start, "s")
 
         # Assign to member variables
         self.eigval = w
