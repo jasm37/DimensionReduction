@@ -5,7 +5,7 @@ from sklearn import datasets
 
 def get_data(name, n_samples):
     # noise parameter might depend on the dataset to be produced
-    noise = 0.1
+    noise = 0
     mean = np.array([0.0, 0.0])
     covariance = np.array([[2, 0.0], [0.0, 2]])
     return {
@@ -17,7 +17,8 @@ def get_data(name, n_samples):
         'two_planes':get_linear_surface(n_samples=n_samples),
         'torus_curve':get_toroidal_helix(n_samples=n_samples),
         'punc_sphere':get_punctured_sphere(n_samples=n_samples),
-        '4dcube':get_4dcube(n_samples=n_samples)
+        '4dcube':get_4dcube(n_samples=n_samples),
+        'curve_3d':curve_3d(n_samples=n_samples)
     }[name]
 
 
@@ -140,6 +141,16 @@ def get_punctured_sphere(n_samples):
     data = np.stack((X, Y, Z), axis=1)
     return data, Y
 
+def curve_3d(n_samples):
+    p = np.linspace(0, 2*np.pi, n_samples)
+    X = 3*np.cos(p)
+    Y = 4*np.sin(p*np.e)
+    Z = 2*np.cos(p/7)
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    Z = Z.reshape(-1)
+    data = np.stack((X, Y, Z), axis=1)
+    return data, Y
 
 def get_clustered_data():
     raise ValueError("2D plot implementation missing")
