@@ -9,7 +9,7 @@ from interpolation import nystrom_ext, rbf_interpolate, poly_rbf, geom_harmonics
 from mpl_toolkits.mplot3d import Axes3D
 
 # Simple script to test diff. maps dimension reduction
-samples = 'plane'
+samples = 'gaussian'
 num_samples = 1000
 A, color = get_data(samples, num_samples)
 #A = np.genfromtxt('swiss_roll.txt')
@@ -67,12 +67,32 @@ color_p = np.delete(color, idx)
 color = np.delete(color, idx)
 
 interp_pred = []
-eps = 0.01#0.001
+eps = 100#0.001
 neig = 100
-gm_error = 0.1
+gm_error = 0.01
 
 gh = GeometricHarmonics(dm_coord[:,:2], A, eps, neig)
 gh.multiscale_fit(gm_error)
+
+eigval_str = "gm_eigval"
+eigvec_str = "gm_eigvec"
+eps_str = "gmeps"
+projfdata_str = "gm_projfdata"
+projcoeffs_str = "dm_projcoeffs"
+
+np.save(eigval_str, gh.eigval)
+np.save(eigvec_str, gh.eigvec)
+np.save(eps_str, gh.eps)
+np.save(projfdata_str, gh.proj_fdata)
+np.save(projcoeffs_str, gh.proj_coeffs)
+
+eigval = np.load(eigval_str+".npy")
+eigvec = np.load(eigvec_str+".npy")
+eps = np.load(eps_str+".npy")
+pfdata = np.load(projfdata_str+".npy")
+pcoeffs = np.load(projcoeffs_str+".npy")
+
+gh.load_cached_mat(eigvec, eigval, pfdata, pcoeffs, eps)
 
 #print(pred[0])
 #val, k1 = poly_rbf(pred[0][:2], dm_coord[:,:2], A, nnbhd=50)
@@ -89,7 +109,15 @@ gh.multiscale_fit(gm_error)
 #val, _ = gh.interpolate(C[1,:2])
 #interp_pred.append(val)
 
-mult_val, _ = gh.mult_interpolate(C[0,:2], C[1,:2], [-0.05,0])
+x = np.linspace(-0.04, 0.04, 50)
+y = np.linspace(-0.04, 0.04, 50)
+X, Y = np.meshgrid(x, y)
+X = X.reshape(-1)
+Y = Y.reshape(-1)
+data = np.stack((X, Y), axis=1)
+list_data = np.ndarray.tolist(data)
+mult_val,_ = gh.mult_interpolate(list_data)
+#mult_val, _ = gh.mult_interpolate(C[0,:2], C[1,:2], [-0.05,0])
 
 #new = new.T
 #print("Error is ", np.linalg.norm(new-A))
@@ -106,11 +134,13 @@ plt.show()
 
 fig = plt.figure(figsize=(10, 5))
 ax = fig.add_subplot(121, projection='3d')
-ax.scatter(A[:,0], A[:,1], A[:,2], c = color, cmap = plt.cm.Spectral)
+#ax.scatter(A[:,0], A[:,1], A[:,2], c = color, cmap = plt.cm.Spectral)
 #ax.scatter(B[:,0], B[:,1], B[:,2], marker='x', s=40)
 #ax.scatter(interp_pred[0][0], interp_pred[0][1], interp_pred[0][2], c="black", marker='>', s=60)
 #ax.scatter(interp_pred[1][0], interp_pred[1][1], interp_pred[1][2], c="black", marker='<', s=60)
-ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c="black", marker='<', s=60)
+#ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c="black", marker='<', s=60)
+#ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c=mult_val[:,2], cmap=plt.cm.Spectral)
+ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c=mult_val[:,2], cmap=plt.cm.Spectral)
 
 plt.title('Original data')
 

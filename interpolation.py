@@ -38,6 +38,18 @@ class GeometricHarmonics():
         self.proj_fdata = []
         self.proj_coeffs = []
 
+    def load_cached_mat(self, eigvec, eigval, proj_fdata, proj_coeffs, eps):
+        assert eigval.shape[0] == self.neig and eigvec.shape[1] == self.neig, \
+            "GH:: Number of eigenvalues/vectors is not correct for loaded array"
+        assert proj_coeffs.shape[1] == self.n_fdim, \
+            "GH:: Dimension of projection matrix is not correct"
+        self.eps = eps
+        self.eigvec = eigvec
+        self.eigval = eigval
+        self.proj_fdata = proj_fdata
+        self.proj_coeffs = proj_coeffs
+
+
     def _compute_eigv(self, ker_mat, neig):
         eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=None)
         self.eigval, self.eigvec = eigval[::-1], eigvec[:, ::-1]
@@ -71,7 +83,7 @@ class GeometricHarmonics():
     def mult_interpolate(self, *args, eps=None):
         # If no eps is given then use self.eps
         eps = eps if eps is not None else self.eps
-        x_array = np.asarray(args)
+        x_array = np.squeeze(np.asarray(args))
         num_interpolands = x_array.shape[0]
         #x_vec = x.reshape(1, x.shape[0])
         x_vec = x_array
@@ -93,6 +105,7 @@ class GeometricHarmonics():
         count = 1
         eps_list = [self.eps]
         error_list = [self.fro_error]
+
         while self.fro_error > error and count < self.max_count:
             count += 1
             self.eps /= 2
@@ -152,6 +165,7 @@ def geom_harmonics(x, data, fdata, eps, neig):
         proj_farray[i,:] = proj_fdata
 
     return ext_array, proj_farray
+
 
 def multiscale_gm(x, data, fdata, eps, neig ,error):
     var_eps = eps
