@@ -23,9 +23,14 @@ class GeometricHarmonics():
         self.neig = neig
         # data(x) is domain variables, and fdata(f(x)) is the resp. image
         self.data = data
-        self.fdata = fdata
+
         #Number of dimensions of f(x)
-        self.n_fdim = fdata.shape[1]
+        if fdata.ndim == 1:
+            self.n_fdim = 1
+            self.fdata = fdata.reshape(fdata.shape[0],1)
+        else:
+            self.n_fdim = fdata.shape[1]
+            self.fdata = fdata
         self.n_elems = fdata.shape[0]
         self.dist_mat = dist.cdist(data, data, 'sqeuclidean')
         # Maximum number of iterations for multiscale method
@@ -59,6 +64,7 @@ class GeometricHarmonics():
         self.ker_matrix = np.exp(-self.dist_mat / self.eps)
         self.eigval, self.eigvec = self._compute_eigv(self.ker_matrix, self.neig)
         self.proj_coeffs = (self.fdata.T @ self.eigvec).T
+        self.proj_coeffs = np.reshape(self.proj_coeffs,(self.proj_coeffs.shape[0], self.n_fdim))
         proj_farray = np.zeros((self.n_fdim, self.n_elems))
         for i in range(self.n_fdim):
             proj_farray[i,:] = np.sum(self.eigvec*self.proj_coeffs[:,i], axis=1)
@@ -138,6 +144,7 @@ def nystrom_ext(x, data, eps, eigval, eigvec):
     #diag_mat = np.diag(1/eigval)
     #proj_point = diag_mat @ proj_point
     return np.squeeze(proj_point)
+
 
 def geom_harmonics(x, data, fdata, eps, neig):
     n_fdim = fdata.shape[1]
@@ -237,6 +244,7 @@ def poly_rbf(x, data, fdata, power=2, nnbhd=2):
     interp = coeffs.T @ sorted_kern
     return interp, indices
 
+
 def onedim_test():
     n_samples = 1000
     n = int(np.sqrt(n_samples))
@@ -311,9 +319,47 @@ def vectorfield_test():
     plt.show()
 
 
+def plot_circle():
+    x = np.linspace(0,2*np.pi,100)
+    Z = np.cos(2*x)
+    X = np.cos(x)
+    Y = np.sin(x)
+    XY = np.vstack((X, Y)).T
+    '''
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.plot(X,Y,Z)
+    plt.show()
+    '''
+
+    neig = 70
+    gm_error = 0.1
+    eps = 1
+    gh = GeometricHarmonics(XY, Z, eps=eps, neig=neig)
+    gh.multiscale_fit(gm_error)
+    nsamples = 100
+    xx = np.linspace(-4.0, 4.0, nsamples)
+    yy = np.linspace(-4.0, 4.0, nsamples)
+    XX, YY = np.meshgrid(xx, yy)
+    XX_ = XX.reshape(-1)
+    YY_ = YY.reshape(-1)
+    data = np.vstack((XX_,YY_)).T
+    data = np.ndarray.tolist(data)
+
+    mult_val, _ = gh.mult_interpolate(data)
+    mult_val = np.squeeze(np.asarray(mult_val))
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.plot(X, Y, Z)
+    mult_val = mult_val.reshape((nsamples, nsamples), order='F').T
+    ax.plot_surface(XX, YY, mult_val, cmap="autumn",antialiased=True)
+    plt.show()
+
+
 if __name__ == "__main__":
     #onedim_test()
-    vectorfield_test()
+    #vectorfield_test()
+    plot_circle()
 
 
 
