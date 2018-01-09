@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 import scipy.spatial.distance as dist
 from numpy.linalg import lstsq
 
@@ -36,6 +37,7 @@ def local_linear_regression(Y, X, eps_med_scale):
 
 def compute_res(V, eps_scale=5):
     # Compute cross-validation error and residuals according to reference
+
     n = V.shape[1]
     RES = np.zeros(n)
     RES[0] = 1
@@ -45,7 +47,8 @@ def compute_res(V, eps_scale=5):
     # Sort eigvec indices to obtain pars. DM rep.
     indices = np.argsort(RES)
     indices = indices[::-1]
-    print("Initial order or residuals is : ", RES)
-    print("Sorted residuals are : ", RES[indices])
-    print("Respective sorted indices are: ", indices)
+    logging.basicConfig(level=logging.INFO)
+    logging.info("\tInitial order or residuals is \n%s ", str(RES).strip('[]'))
+    logging.info("\tSorted residuals are \n%s ", str(RES[indices]).strip('[]'))
+    logging.info("\tRespective sorted indices are \n%s ", str(indices).strip('[]'))
     return np.squeeze(RES), indices

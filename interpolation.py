@@ -1,5 +1,6 @@
 # Contains all methods used to interpolate points from ambient space to DM space and viceversa
 import numpy as np
+import logging
 from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
 import scipy.spatial.distance as dist
 import scipy.sparse.linalg as ssl
@@ -42,6 +43,17 @@ class GeometricHarmonics():
         self.ker_matrix = []
         self.proj_fdata = []
         self.proj_coeffs = []
+
+        format = "%(levelname)s:%(name)s:\t%(message)s"
+        logfile = "GeomHarm.log"
+        # Write log to file
+        logging.basicConfig(filename=logfile, level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        # Show log
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(logging.Formatter(format))
+        logging.getLogger('').addHandler(console)
 
     def load_cached_mat(self, eigvec, eigval, proj_fdata, proj_coeffs, eps):
         assert eigval.shape[0] == self.neig and eigvec.shape[1] == self.neig, \
@@ -124,8 +136,7 @@ class GeometricHarmonics():
             self.eps = eps_list[pos]
             self.fit()
 
-
-        print("Multiscale fit stopped after ", count, " out of ", self.max_count," iterations, eps ", self.eps, " and error ", self.fro_error)
+        self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
 
 
 def nystrom_ext(x, data, eps, eigval, eigvec):

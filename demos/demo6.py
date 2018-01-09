@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import logging
 from mpl_toolkits.mplot3d import Axes3D
 from diff_map import DiffusionMap
 from gen_data import get_data
@@ -37,10 +38,8 @@ plt.axis([min_x, max_x, min_y, max_y])
 
 eps_scale = 5
 res,_ = compute_res(x[:,:ndim], eps_scale)
-print("Computed residuals are :",res)
 indices = np.argsort(res)
 indices = indices[::-1]
-print("Sorted residuals are :",res[indices])
 y = diff_map.param_from_indices(indices, ndim=ndim)
 
 ax = fig.add_subplot(233)

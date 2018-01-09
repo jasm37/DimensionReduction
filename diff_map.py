@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 import numpy.linalg as LA
 from scipy.spatial import distance
 from scipy.interpolate import griddata, Rbf
@@ -6,6 +7,10 @@ from scipy.sparse.linalg import eigsh
 from scipy.linalg import eigh
 from pars_rep_dm import compute_res
 import time as tm
+
+#logger = logging.getLogger(__name__)
+#logger.setLevel(logging.INFO)
+
 
 #TODO: add MORE references/bibliography
 class DiffusionMap:
@@ -16,7 +21,7 @@ class DiffusionMap:
         self.K = []
 
         # Data array
-        self.data = []
+        self.data = [] # (N,d) data array: N is number of samples, d dimension
 
         # Eigvectors and eigvalues of DM kernel decomp
         self.eigvec = []
@@ -30,6 +35,19 @@ class DiffusionMap:
 
         # Number of neighbourhoods to perform RBF interpolation
         self.nnb = 2
+
+        # Set loggers properties
+        format = "%(levelname)s:%(name)s:\t%(message)s"
+        logfile = "DiffMap.log"
+        # Write log to file
+        logging.basicConfig(filename=logfile, level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
+        # Show log
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        console.setFormatter(logging.Formatter(format))
+        logging.getLogger('').addHandler(console)
+
     @staticmethod
     def get_distance_matrix(data):
         return distance.cdist(data, data, 'euclidean')
@@ -97,7 +115,7 @@ class DiffusionMap:
         # if no epsilon is given then compute it wrt the sq ditance(data)
         if not self.eps: self.get_eps_from_data()
         eps = self.eps
-        print('Diff. maps eps is ', eps)
+        self.logger.info('Diff. maps eps is %f', eps)
         if nbhd_param:
             self.K = self.get_partial_kernel(data, eps, nbhd_param)
         else:
@@ -178,7 +196,7 @@ class DiffusionMap:
         start = tm.time()
         w, x = eigsh(M, k=ndim + 1, which='LM', ncv=None)
         end = tm.time()
-        print("DM coordinates computation took ", end-start, "s")
+        self.logger.info("DM coordinates computation took %f s", end-start)
 
         # Get decreasing order of evectors and evalues
         w = w[::-1]
@@ -201,7 +219,7 @@ class DiffusionMap:
             w = w[indices]
             x = x[:,indices]
             end = tm.time()
-            print("Parsimonious rep. of DM took ", end - start, "s")
+            self.logger.info("Parsimonious rep. of DM took %f s", end-start)
 
         # Assign to member variables
         self.eigval = w
