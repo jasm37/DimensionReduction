@@ -66,7 +66,6 @@ class GeometricHarmonics():
         self.proj_fdata = proj_fdata
         self.proj_coeffs = proj_coeffs
 
-
     def _compute_eigv(self, ker_mat, neig):
         eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=None)
         self.eigval, self.eigvec = eigval[::-1], eigvec[:, ::-1]
@@ -76,7 +75,7 @@ class GeometricHarmonics():
         self.ker_matrix = np.exp(-self.dist_mat / self.eps)
         self.eigval, self.eigvec = self._compute_eigv(self.ker_matrix, self.neig)
         self.proj_coeffs = (self.fdata.T @ self.eigvec).T
-        self.proj_coeffs = np.reshape(self.proj_coeffs,(self.proj_coeffs.shape[0], self.n_fdim))
+        self.proj_coeffs = np.reshape(self.proj_coeffs, (self.proj_coeffs.shape[0], self.n_fdim))
         proj_farray = np.zeros((self.n_fdim, self.n_elems))
         for i in range(self.n_fdim):
             proj_farray[i,:] = np.sum(self.eigvec*self.proj_coeffs[:,i], axis=1)
@@ -85,7 +84,9 @@ class GeometricHarmonics():
 
     def interpolate(self, x, eps=None):
         # If no eps is given then use self.eps
-        eps = eps if eps is not None else self.eps
+        #eps = eps if eps is not None else self.eps
+        if eps is None:
+            eps = self.eps
         x_vec = x.reshape(1, x.shape[0])
         dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
         ker_vec = np.exp(-dist_vec / eps)
@@ -96,7 +97,7 @@ class GeometricHarmonics():
         for i in range(self.n_fdim):
             ext_array[i] = np.sum(self.proj_coeffs[:,i]*ext_eigvec, axis=1)
 
-        return ext_array, self.proj_fdata
+        return ext_array#, self.proj_fdata
 
     def mult_interpolate(self, *args, eps=None):
         # If no eps is given then use self.eps
@@ -114,7 +115,7 @@ class GeometricHarmonics():
         for i in range(self.n_fdim):
             ext_array[:,i] = np.sum(self.proj_coeffs[:, i] * ext_eigvec, axis=1)
 
-        return ext_array, self.proj_fdata
+        return ext_array#, self.proj_fdata
 
     def multiscale_fit(self, error):
         if self.fro_error == 0:
@@ -136,7 +137,7 @@ class GeometricHarmonics():
             self.eps = eps_list[pos]
             self.fit()
 
-        self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
+        #self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
 
 
 def nystrom_ext(x, data, eps, eigval, eigvec):
@@ -357,7 +358,7 @@ def plot_circle():
     data = np.vstack((XX_,YY_)).T
     data = np.ndarray.tolist(data)
 
-    mult_val, _ = gh.mult_interpolate(data)
+    mult_val = gh.mult_interpolate(data)
     mult_val = np.squeeze(np.asarray(mult_val))
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
