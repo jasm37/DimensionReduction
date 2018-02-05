@@ -1,7 +1,7 @@
 import numpy as np
 import logging
 import scipy.spatial.distance as dist
-from numpy.linalg import lstsq
+from scipy.linalg import lstsq
 
 ## Parsimonious representation of DM,
 ## Reference:

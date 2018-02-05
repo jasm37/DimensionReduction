@@ -35,7 +35,7 @@ class GeometricHarmonics():
         self.n_elems = fdata.shape[0]
         self.dist_mat = dist.cdist(data, data, 'sqeuclidean')
         # Maximum number of iterations for multiscale method
-        self.max_count = 20
+        self.max_count = 50
 
         self.fro_error = 0
         self.eigval = []
@@ -67,7 +67,7 @@ class GeometricHarmonics():
         self.proj_coeffs = proj_coeffs
 
     def _compute_eigv(self, ker_mat, neig):
-        eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=None)
+        eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=ker_mat.shape[0]-1)
         self.eigval, self.eigvec = eigval[::-1], eigvec[:, ::-1]
         return self.eigval, self.eigvec
 
@@ -106,6 +106,7 @@ class GeometricHarmonics():
         num_interpolands = x_array.shape[0]
         #x_vec = x.reshape(1, x.shape[0])
         x_vec = x_array
+
         dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
         ker_vec = np.exp(-dist_vec / eps)
         # Compute extension of eigvectors
