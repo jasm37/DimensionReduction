@@ -2,10 +2,12 @@
 # Given an outlier point, compute its projection into the reduced dimension space
 
 import numpy as np
+import logging
 from gen_data import get_data
+#from ..gen_data import get_data
 from diff_map import DiffusionMap
 import matplotlib.pyplot as plt
-from interpolation import nystrom_ext, rbf_interpolate, poly_rbf, geom_harmonics, multiscale_gm, GeometricHarmonics
+from interpolation import nystrom_ext, rbf_interpolate, poly_rbf, geom_harmonics, multiscale_gm, GeometricHarmonics, inv_weight, multi_rbf
 from mpl_toolkits.mplot3d import Axes3D
 
 # Simple script to test diff. maps dimension reduction
@@ -116,7 +118,9 @@ X = X.reshape(-1)
 Y = Y.reshape(-1)
 data = np.stack((X, Y), axis=1)
 list_data = np.ndarray.tolist(data)
-mult_val,_ = gh.mult_interpolate(list_data)
+mult_val_1 = gh.mult_interpolate(list_data)
+#mult_val_2 = inv_weight(list_data, data=dm_coord[:,:2], fdata=A)
+mult_val_2 = multi_rbf(list_data, data=dm_coord[:,:2], fdata=A)
 #mult_val, _ = gh.mult_interpolate(C[0,:2], C[1,:2], [-0.05,0])
 
 #new = new.T
@@ -132,19 +136,22 @@ ax = fig.add_subplot(122, projection='3d')
 ax.scatter(gh.proj_fdata.T[:,0], gh.proj_fdata.T[:,1], gh.proj_fdata.T[:,2], c = color, cmap = plt.cm.Spectral)
 plt.show()
 
-fig = plt.figure(figsize=(10, 5))
-ax = fig.add_subplot(121, projection='3d')
+fig = plt.figure(figsize=(15, 5))
+ax = fig.add_subplot(131, projection='3d')
 #ax.scatter(A[:,0], A[:,1], A[:,2], c = color, cmap = plt.cm.Spectral)
 #ax.scatter(B[:,0], B[:,1], B[:,2], marker='x', s=40)
 #ax.scatter(interp_pred[0][0], interp_pred[0][1], interp_pred[0][2], c="black", marker='>', s=60)
 #ax.scatter(interp_pred[1][0], interp_pred[1][1], interp_pred[1][2], c="black", marker='<', s=60)
 #ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c="black", marker='<', s=60)
 #ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c=mult_val[:,2], cmap=plt.cm.Spectral)
-ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c=mult_val[:,2], cmap=plt.cm.Spectral)
+ax.scatter(mult_val_1[:,0], mult_val_1[:,1], mult_val_1[:,2], c=mult_val_1[:,2], cmap=plt.cm.Spectral)
+
+ax = fig.add_subplot(132, projection='3d')
+ax.scatter(mult_val_2[:,0], mult_val_2[:,1], mult_val_2[:,2], c=mult_val_2[:,2], cmap=plt.cm.Spectral)
 
 plt.title('Original data')
 
-ax = fig.add_subplot(122)
+ax = fig.add_subplot(133)
 plt.scatter(dm_coord[:,0], dm_coord[:,1], c=color_p, cmap=plt.cm.Spectral)
 #plt.scatter(pred[0][0], pred[0][1], marker='x', s=40)
 plt.scatter(C[0,0], C[0,1], c="black",marker='x', s=40)

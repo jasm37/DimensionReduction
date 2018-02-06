@@ -141,6 +141,29 @@ class GeometricHarmonics():
         #self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
 
 
+def inv_weight(*args, data, fdata, nnbhd=10):
+    x_array = np.squeeze(np.asarray(args))
+    inv_dist = 1 / dist.cdist(x_array, data)
+    out = np.zeros((x_array.shape[0], fdata.shape[1]))
+    for i in range(x_array.shape[0]):
+        #arr = arr
+        ind = np.argsort(inv_dist[i,:])[::-1][:nnbhd]
+        local_dist = inv_dist[i,ind]
+        local_fdata = fdata[ind]
+        num = np.dot(local_dist, local_fdata)
+        den = np.sum(local_dist)
+        out[i,:] = num/den
+
+    #nums = inv_dist @ fdata
+    #den = np.sum(inv_dist, axis=1)
+
+    #for i in range(len(args)):
+    #    y = num / den
+    #y = nums.T / den
+    #print(np.max(y), np.min(y))
+    return out
+
+
 def nystrom_ext(x, data, eps, eigval, eigvec):
     # Nyström extension for outlier points.
     # If the original space is Rn and projection space Rd,
@@ -231,15 +254,28 @@ def rbf_interpolate(x, data, fdata, nnbhd=20):
         tt = rbfi(interp_x.T)
         #rbfi = InterpolatedUnivariateSpline(*interp_x.T, interp_y[:, j])
         pred.append(rbfi(*x_vec.T))
-    return np.asarray(pred), indices
+    return np.asarray(pred)#, indices
 
 
 def kernel(D, eps):
-    #return np.exp(-D*D/(eps*eps))
-    return np.power(D, eps)
+    return np.exp(-D*D/(eps*eps))
+    #return np.power(D, eps)
 
 
-def poly_rbf(x, data, fdata, power=2, nnbhd=2):
+def multi_rbf(x_array, data, fdata, power=2, nnbhd=10):
+    i = 0
+    out_arr = np.zeros((len(x_array), fdata.shape[1]))
+    for point in x_array:
+        point = np.asarray(point)
+        interp,_ = poly_rbf(point, data, fdata, power, nnbhd)
+        out_arr[i,:] = interp
+        i+=1
+
+    return out_arr
+
+
+
+def poly_rbf(x, data, fdata, power=2, nnbhd=10):
     x_vec = x.reshape(1, x.shape[0])
     norm_vec = np.squeeze(dist.cdist(x_vec, data))
     indices = np.squeeze(np.argsort(norm_vec))#[::-1]
@@ -265,7 +301,7 @@ def onedim_test():
     y = np.linspace(-20.0, 20.0, n)
     X, Y = np.meshgrid(x, y)
     #Z = 2 * X + Y
-    Z = X*X*X + Y*Y
+    Z = X*X*X + Y*Y + np.exp((X*Y + X - Y) / 150) + X*Y*np.sin(Y)
     X = X.reshape(-1)
     Y = Y.reshape(-1)
     Z = Z.reshape(-1)
@@ -285,7 +321,7 @@ def onedim_test():
     for i in range(XX.shape[0]):
         zz = topred[:, i]
         # zz = zz.reshape(1, zz.shape[0])
-        pred, _ = poly_rbf(zz, XY.T, Z, power=2, nnbhd=50)
+        pred, _ = poly_rbf(zz, XY.T, Z, power=1, nnbhd=50)
         pred_list.append(pred)
     pred_arr = np.squeeze(np.asarray(pred_list))
     fig = plt.figure(figsize=(5, 5))
@@ -295,8 +331,50 @@ def onedim_test():
     plt.show()
 
 
+def onedim_test_inv():
+    n_samples = 1000
+    n = int(np.sqrt(n_samples))
+    x = np.linspace(-10.0, 10.0, n)
+    y = np.linspace(-20.0, 20.0, n)
+    X, Y = np.meshgrid(x, y)
+    #Z = 2 * X + Y
+    Z = X*X*X + Y*Y + np.exp((X*Y + X - Y) / 150) + X*Y*np.sin(Y)
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    Z = Z.reshape(-1)
+    XY = np.vstack((X, Y))
+    Z = Z.reshape((Z.shape[0], 1))
+    topred = np.array([[0], [0]])
+    # pred = rbf_interpolate(topred, XY.T, Z, nnbhd=10)
+    #pred = poly_rbf(topred, XY.T, Z, power=5, nnbhd=10)
+    # print(pred)
+    n_samples = 500
+    n = int(np.sqrt(n_samples))
+    xx = np.linspace(-5.0, 5.0, n)
+    yy = np.linspace(-10.0, 10.0, n)
+    XX, YY = np.meshgrid(xx, yy)
+    XX = XX.reshape(-1)
+    YY = YY.reshape(-1)
+    topred = np.vstack((XX, YY))
+    pred_list = []
+    '''
+    for i in range(XX.shape[0]):
+        zz = topred[:, i]
+        # zz = zz.reshape(1, zz.shape[0])
+        pred, _ = poly_rbf(zz, XY.T, Z, power=1, nnbhd=50)
+        pred_list.append(pred)
+    '''
+    pred_arr = inv_weight(topred.T, data=XY.T, fdata=Z)
+    #pred_arr = np.squeeze(np.asarray(pred_list))
+    fig = plt.figure(figsize=(5, 5))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(XX, YY, pred_arr, c="blue", cmap=plt.cm.Spectral)
+    ax.scatter(X, Y, Z, c="red", cmap=plt.cm.Spectral)
+    plt.show()
+
+
 def vectorfield_test():
-    n_samples = 10
+    n_samples = 2000
     n = int(np.sqrt(n_samples))
     #X, Y = np.meshgrid(np.arange(0, 2 * np.pi, .2), np.arange(0, 2 * np.pi, .2))
     X, Y = 2*np.pi*np.random.rand(n_samples), 2*np.pi*np.random.rand(n_samples)
@@ -345,8 +423,8 @@ def plot_circle():
     plt.show()
     '''
 
-    neig = 70
-    gm_error = 0.1
+    neig = 5#70
+    gm_error = 1
     eps = 1
     gh = GeometricHarmonics(XY, Z, eps=eps, neig=neig)
     gh.multiscale_fit(gm_error)
@@ -369,10 +447,56 @@ def plot_circle():
     plt.show()
 
 
+def inv_main():
+    x = np.linspace(0,2*np.pi,100)
+    Z = np.cos(2*x)
+    X = np.cos(x)
+    Y = np.sin(x)
+    XY = np.vstack((X, Y)).T
+    '''
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.plot(X,Y,Z)
+    plt.show()
+    '''
+
+    neig = 5#70
+    gm_error = 1
+    eps = 1
+    #gh = GeometricHarmonics(XY, Z, eps=eps, neig=neig)
+
+    #gh.multiscale_fit(gm_error)
+    nsamples = 100
+    xx = np.linspace(-4.0, 4.0, nsamples)
+    yy = np.linspace(-4.0, 4.0, nsamples)
+    XX, YY = np.meshgrid(xx, yy)
+    XX_ = XX.reshape(-1)
+    YY_ = YY.reshape(-1)
+    data = np.vstack((XX_,YY_)).T
+    data = np.ndarray.tolist(data)
+
+    #mult_val = gh.mult_interpolate(data)
+    mult_val = inv_weight(data, data=XY, fdata=Z)
+    mult_val = np.squeeze(np.asarray(mult_val))
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    plt.plot(X, Y, Z)
+    mult_val = mult_val.reshape((nsamples, nsamples), order='F').T
+    map = ax.plot_surface(XX, YY, mult_val, cmap="autumn",antialiased=True)
+    fig.colorbar(map)
+    plt.show()
+
+
+
 if __name__ == "__main__":
     #onedim_test()
     #vectorfield_test()
-    plot_circle()
+    #plot_circle()
+    #inv_main()
+    onedim_test_inv()
+
+
+
 
 
 
