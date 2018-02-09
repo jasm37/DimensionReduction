@@ -8,7 +8,10 @@ from gen_data import get_data
 from diff_map import DiffusionMap
 import matplotlib.pyplot as plt
 from interpolation import nystrom_ext, rbf_interpolate, poly_rbf, geom_harmonics, multiscale_gm, GeometricHarmonics, inv_weight, multi_rbf
+from interpolation import interpolate_gh_byparts
 from mpl_toolkits.mplot3d import Axes3D
+from demos.n_gh import GeometricHarmonicsInterpolator
+
 
 # Simple script to test diff. maps dimension reduction
 samples = 'gaussian'
@@ -69,19 +72,25 @@ color_p = np.delete(color, idx)
 color = np.delete(color, idx)
 
 interp_pred = []
-eps = 100#0.001
+eps = 1#0.001
 neig = 100
 gm_error = 0.01
+delta = 0.001
 
-gh = GeometricHarmonics(dm_coord[:,:2], A, eps, neig)
+gh = GeometricHarmonics(dm_coord[:,:2], A, eps, neig, delta=delta)
+
 gh.multiscale_fit(gm_error)
+
+print("Frob. error is ", gh.fro_error)
+print("Selected eps is ", gh.eps)
+print("Num of eigvectors is ", len(gh.eigval))
 
 eigval_str = "gm_eigval"
 eigvec_str = "gm_eigvec"
 eps_str = "gmeps"
 projfdata_str = "gm_projfdata"
 projcoeffs_str = "dm_projcoeffs"
-
+'''
 np.save(eigval_str, gh.eigval)
 np.save(eigvec_str, gh.eigvec)
 np.save(eps_str, gh.eps)
@@ -95,6 +104,7 @@ pfdata = np.load(projfdata_str+".npy")
 pcoeffs = np.load(projcoeffs_str+".npy")
 
 gh.load_cached_mat(eigvec, eigval, pfdata, pcoeffs, eps)
+'''
 
 #print(pred[0])
 #val, k1 = poly_rbf(pred[0][:2], dm_coord[:,:2], A, nnbhd=50)
@@ -111,8 +121,10 @@ gh.load_cached_mat(eigvec, eigval, pfdata, pcoeffs, eps)
 #val, _ = gh.interpolate(C[1,:2])
 #interp_pred.append(val)
 
-x = np.linspace(-0.04, 0.04, 50)
-y = np.linspace(-0.04, 0.04, 50)
+#x = np.linspace(-0.02, 0.02, 50)
+#y = np.linspace(-0.02, 0.02, 50)
+x = np.linspace(-0.02, 0.02, 50)
+y = np.linspace(-0.02, 0.02, 50)
 X, Y = np.meshgrid(x, y)
 X = X.reshape(-1)
 Y = Y.reshape(-1)
@@ -120,7 +132,10 @@ data = np.stack((X, Y), axis=1)
 list_data = np.ndarray.tolist(data)
 mult_val_1 = gh.mult_interpolate(list_data)
 #mult_val_2 = inv_weight(list_data, data=dm_coord[:,:2], fdata=A)
-mult_val_2 = multi_rbf(list_data, data=dm_coord[:,:2], fdata=A)
+mult_val_2 = multi_rbf(list_data, data=dm_coord[:,:2], fdata=A, eps=0.0001)
+#gh_int = GeometricHarmonicsInterpolator(points=dm_coord[:,:2], values=A, epsilon=0.001)
+#mult_val_2 = gh_int(list_data)
+#mult_val_2 = interpolate_gh_byparts(dm_coord[:,:2], A, list_data, neig=6, nnbhd=10, gm_error=0.001)
 #mult_val, _ = gh.mult_interpolate(C[0,:2], C[1,:2], [-0.05,0])
 
 #new = new.T
@@ -148,7 +163,6 @@ ax.scatter(mult_val_1[:,0], mult_val_1[:,1], mult_val_1[:,2], c=mult_val_1[:,2],
 
 ax = fig.add_subplot(132, projection='3d')
 ax.scatter(mult_val_2[:,0], mult_val_2[:,1], mult_val_2[:,2], c=mult_val_2[:,2], cmap=plt.cm.Spectral)
-
 plt.title('Original data')
 
 ax = fig.add_subplot(133)

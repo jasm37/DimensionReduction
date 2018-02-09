@@ -37,5 +37,5 @@ def get_local_nbhd(data, x, nnbhd):
     #           This makes the Geometric Harmonics procedure faster
     # 0 < factor < 1
     factor = 0.25
-    nbhd_list = np.random.choice(nbhd_list, int(len(nbhd_list)*factor))
+    #nbhd_list = np.random.choice(nbhd_list, int(len(nbhd_list)*factor))
     return nbhd_list

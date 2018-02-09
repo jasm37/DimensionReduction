@@ -19,9 +19,10 @@ class GeometricHarmonics():
     #       -Reduced Models in Chemical Kinetics via Nonlinear Data-Mining
     #           https://arxiv.org/pdf/1307.6849.pdf
 
-    def __init__(self, data, fdata, eps, neig):
+    def __init__(self, data, fdata, eps, neig, delta=0.0):
         self.eps = eps
         self.neig = neig
+        self.delta = delta
         # data(x) is domain variables, and fdata(f(x)) is the resp. image
         self.data = data
 
@@ -35,7 +36,7 @@ class GeometricHarmonics():
         self.n_elems = fdata.shape[0]
         self.dist_mat = dist.cdist(data, data, 'sqeuclidean')
         # Maximum number of iterations for multiscale method
-        self.max_count = 50
+        self.max_count = 30
 
         self.fro_error = 0
         self.eigval = []
@@ -67,8 +68,12 @@ class GeometricHarmonics():
         self.proj_coeffs = proj_coeffs
 
     def _compute_eigv(self, ker_mat, neig):
-        eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=ker_mat.shape[0]-1)
+        eigval, eigvec = ssl.eigsh(ker_mat, k=neig, which='LM', ncv=ker_mat.shape[0]-1, maxiter=5000, tol=1E-6)
         self.eigval, self.eigvec = eigval[::-1], eigvec[:, ::-1]
+        if self.delta != 0.0:
+            delta_mask = self.eigval > self.delta*self.eigval[0]
+            self.eigval = self.eigval[delta_mask]
+            self.eigvec = self.eigvec[:,delta_mask]
         return self.eigval, self.eigvec
 
     def fit(self):
@@ -96,7 +101,6 @@ class GeometricHarmonics():
         ext_array = np.zeros(self.n_fdim)
         for i in range(self.n_fdim):
             ext_array[i] = np.sum(self.proj_coeffs[:,i]*ext_eigvec, axis=1)
-
         return ext_array#, self.proj_fdata
 
     def mult_interpolate(self, *args, eps=None):
@@ -119,7 +123,7 @@ class GeometricHarmonics():
         return ext_array#, self.proj_fdata
 
     def multiscale_fit(self, error):
-        if self.fro_error == 0:
+        if self.fro_error == 0.0:
             self.fit()
 
         count = 1
@@ -141,9 +145,24 @@ class GeometricHarmonics():
         #self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
 
 
+def nnbhd_mean(*args, data, fdata, nnbhd=10):
+    x_array = np.squeeze(np.asarray(args))
+    dist_mat = dist.cdist(x_array, data)
+    out = np.zeros((x_array.shape[0], fdata.shape[1]))
+    for i in range(x_array.shape[0]):
+        ind = np.argsort(dist_mat[i, :])[:nnbhd]
+        local_dist = dist_mat[i, ind]
+        local_fdata = fdata[ind]
+        #num = np.dot(local_dist, local_fdata)
+        #den = np.sum(local_dist)
+        out[i, :] = np.mean(local_fdata, axis=0)
+    return out
+
+
 def inv_weight(*args, data, fdata, nnbhd=10):
     x_array = np.squeeze(np.asarray(args))
-    inv_dist = 1 / dist.cdist(x_array, data)
+    dist_arr = dist.cdist(x_array, data)
+    inv_dist = 1 / dist_arr
     out = np.zeros((x_array.shape[0], fdata.shape[1]))
     for i in range(x_array.shape[0]):
         #arr = arr
@@ -259,15 +278,16 @@ def rbf_interpolate(x, data, fdata, nnbhd=20):
 
 def kernel(D, eps):
     return np.exp(-D*D/(eps*eps))
-    #return np.power(D, eps)
+    #return np.power(D, 3)
 
 
-def multi_rbf(x_array, data, fdata, power=2, nnbhd=10):
+def multi_rbf(x_array, data, fdata, power=2, nnbhd=10, eps=1):
     i = 0
     out_arr = np.zeros((len(x_array), fdata.shape[1]))
+    x_array = np.asarray(x_array)
     for point in x_array:
-        point = np.asarray(point)
-        interp,_ = poly_rbf(point, data, fdata, power, nnbhd)
+        #point = np.asarray(point)
+        interp,_ = poly_rbf(point, data, fdata, power, nnbhd, eps=eps)
         out_arr[i,:] = interp
         i+=1
 
@@ -275,23 +295,45 @@ def multi_rbf(x_array, data, fdata, power=2, nnbhd=10):
 
 
 
-def poly_rbf(x, data, fdata, power=2, nnbhd=10):
+def poly_rbf(x, data, fdata, power=2, nnbhd=10, eps=1):
     x_vec = x.reshape(1, x.shape[0])
     norm_vec = np.squeeze(dist.cdist(x_vec, data))
     indices = np.squeeze(np.argsort(norm_vec))#[::-1]
+    rr = norm_vec[indices]
     indices = indices[:nnbhd]
     sorted_data = data[indices, :]
+    sorted_data, indices = np.unique(sorted_data, axis=0, return_index=True)
     sorted_fdata = fdata[indices,:]
     sorted_dist = dist.squareform(dist.pdist(sorted_data))
-    eps = np.mean(sorted_dist)
+    eps = np.median(sorted_dist)
+    #print()
     alpha = kernel(sorted_dist, eps)
     #alpha = kernel(sorted_dist, power)
     sorted_norm = norm_vec[indices]
     sorted_kern = kernel(sorted_norm, eps)
     #sorted_kern = kernel(sorted_norm, power)
+    #det = np.linalg.det(alpha)
+    #print("Det is ", det)
     coeffs = np.linalg.solve(alpha, sorted_fdata)
     interp = coeffs.T @ sorted_kern
     return interp, indices
+
+
+def interpolate_gh_byparts(data, fdata, interpoland, neig, nnbhd, gm_error):
+    interpoland = np.asarray(interpoland)
+    dist_vec = dist.cdist(interpoland, data, 'sqeuclidean')
+    result_array = np.zeros((interpoland.shape[0],fdata.shape[1]))
+    for i in range(interpoland.shape[0]):
+        temp = np.argsort(dist_vec[i, :])[:nnbhd]
+        local_data = data[temp]
+        local_fdata = fdata[temp]
+        gh = GeometricHarmonics(local_data, local_fdata, eps=1000, neig=neig)
+        gh.multiscale_fit(gm_error)
+        result = gh.interpolate(interpoland[i])
+        #result_list.append(result)
+        result_array[i,:] = result
+    return result_array
+
 
 
 def onedim_test():
@@ -411,8 +453,8 @@ def vectorfield_test():
 
 
 def plot_circle():
-    x = np.linspace(0,2*np.pi,100)
-    Z = np.cos(2*x)
+    x = np.linspace(0,2*np.pi,300)
+    Z = 10*np.cos(3*x)
     X = np.cos(x)
     Y = np.sin(x)
     XY = np.vstack((X, Y)).T
@@ -423,19 +465,23 @@ def plot_circle():
     plt.show()
     '''
 
-    neig = 5#70
-    gm_error = 1
-    eps = 1
+    neig = 99#70
+    gm_error = 0.001
+    eps = 1000000
     gh = GeometricHarmonics(XY, Z, eps=eps, neig=neig)
     gh.multiscale_fit(gm_error)
+    print("Frob error is ", gh.fro_error)
+    print("Frob eps is ", gh.eps)
     nsamples = 100
-    xx = np.linspace(-4.0, 4.0, nsamples)
-    yy = np.linspace(-4.0, 4.0, nsamples)
+    xx = np.linspace(-1.0, 1.0, nsamples)
+    yy = np.linspace(-1.0, 1.0, nsamples)
     XX, YY = np.meshgrid(xx, yy)
     XX_ = XX.reshape(-1)
     YY_ = YY.reshape(-1)
     data = np.vstack((XX_,YY_)).T
     data = np.ndarray.tolist(data)
+    s_arr = np.array([0.3,0.3])
+    sz = gh.interpolate(s_arr)
 
     mult_val = gh.mult_interpolate(data)
     mult_val = np.squeeze(np.asarray(mult_val))
@@ -444,6 +490,63 @@ def plot_circle():
     plt.plot(X, Y, Z)
     mult_val = mult_val.reshape((nsamples, nsamples), order='F').T
     ax.plot_surface(XX, YY, mult_val, cmap="autumn",antialiased=True)
+    ax.scatter(s_arr[0], s_arr[1], sz, marker="x", c="black")
+    plt.show()
+
+
+def plot_inner_circle():
+    x = np.linspace(0,2*np.pi,300)
+
+    Z1 = 10*np.cos(5*x)
+    #Z1 = np.ones(x.shape)*1.2
+    X1 = np.cos(x)
+    Y1 = np.sin(x)
+    XY1 = np.vstack((X1, Y1)).T
+
+    Z2 = 10 * np.cos(2 * x)
+    #Z2 = np.ones(x.shape)*1
+    X2 = 0.3*np.cos(x)
+    Y2 = 0.3*np.sin(x)
+    XY2 = np.vstack((X2, Y2)).T
+
+    XY = np.vstack((XY1, XY2))
+    Z = np.hstack((Z1, Z2))
+    X = np.hstack((X1, X2))
+    Y = np.hstack((Y1, Y2))
+
+    neig = 99#70
+    gm_error = 0.001
+    eps = 1000#1000000
+    # delta << 1
+    delta = 0.00001#0.001
+    gh = GeometricHarmonics(XY, Z, eps=eps, neig=neig, delta=delta)
+    gh.multiscale_fit(gm_error)
+    print("Frob error is ", gh.fro_error)
+    print("Frob eps is ", gh.eps)
+    print("Number of eigvalues is ", len(gh.eigval))
+    nsamples = 100
+
+    width = height = 2
+    xx = np.linspace(-width, height, nsamples)
+    yy = np.linspace(-width, height, nsamples)
+    XX, YY = np.meshgrid(xx, yy)
+    XX_ = XX.reshape(-1)
+    YY_ = YY.reshape(-1)
+    data = np.vstack((XX_,YY_)).T
+    data = np.ndarray.tolist(data)
+    s_arr = np.array([1.0,1.0])
+    sz = gh.interpolate(s_arr)
+
+    mult_val = gh.mult_interpolate(data)
+    mult_val = np.squeeze(np.asarray(mult_val))
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    #ax.scatter(X, Y, Z)
+    plt.plot(X1, Y1, Z1, c="blue")
+    plt.plot(X2, Y2, Z2, c="blue")
+    mult_val = mult_val.reshape((nsamples, nsamples), order='F').T
+    ax.plot_surface(XX, YY, mult_val, cmap="autumn",antialiased=True)
+    ax.scatter(s_arr[0], s_arr[1], sz, marker="x", c="black")
     plt.show()
 
 
@@ -492,8 +595,9 @@ if __name__ == "__main__":
     #onedim_test()
     #vectorfield_test()
     #plot_circle()
+    plot_inner_circle()
     #inv_main()
-    onedim_test_inv()
+    #onedim_test_inv()
 
 
 
