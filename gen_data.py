@@ -9,7 +9,8 @@ def get_data(name, n_samples):
     mean = np.array([0.0, 0.0])
     covariance = np.array([[2, 0.0], [0.0, 2]])
     return {
-        'swiss':datasets.samples_generator.make_swiss_roll(n_samples=n_samples, noise=noise),
+        #'swiss':datasets.samples_generator.make_swiss_roll(n_samples=n_samples, noise=noise),
+        'swiss':get_swiss_roll(n_samples=n_samples),
         'blobs':datasets.samples_generator.make_blobs(n_samples=n_samples, centers=3, n_features=3, random_state=0),
         's_curve':datasets.samples_generator.make_s_curve(n_samples=n_samples, noise=noise),
         'gaussian':get_3d_clusters(n_samples=n_samples, mean=mean, cov=covariance),
@@ -21,6 +22,14 @@ def get_data(name, n_samples):
         'curve_3d':curve_3d(n_samples=n_samples)
     }[name]
 
+
+def get_swiss_roll(n_samples):
+    t = 1.5 * np.pi * (1 + 2 * np.random.rand(1, n_samples))
+    X = t * np.cos(t)
+    Y = 4 * np.random.rand(1, n_samples)
+    Z = t * np.sin(t)
+    data = np.squeeze(np.stack((X, Y, Z), axis=1))
+    return data.T, Z
 
 def get_plane(n_samples, rand=True):
     if rand :
