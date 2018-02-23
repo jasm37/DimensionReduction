@@ -201,6 +201,19 @@ def nystrom_ext(x, data, eps, eigval, eigvec):
     return np.squeeze(proj_point)
 
 
+def mult_nystrom_ext(x, data, eps, eigval, eigvec):
+    x_vec = np.asarray(x)
+    d_vec = dist.cdist(x_vec, data, 'sqeuclidean')
+    w_vec = np.exp(-d_vec / (eps*eps))
+    sum_w = np.sum(w_vec, axis=0)
+    k_vec = w_vec / sum_w
+    proj_point = eigvec.T @ k_vec.T
+    proj_point = (proj_point.T / eigval).T
+    #diag_mat = np.diag(1/eigval)
+    #proj_point = diag_mat @ proj_point
+    return np.squeeze(proj_point)
+
+
 def geom_harmonics(x, data, fdata, eps, neig):
     n_fdim = fdata.shape[1]
     n_elems = fdata.shape[0]
