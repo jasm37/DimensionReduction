@@ -208,7 +208,8 @@ def mult_nystrom_ext(x, data, eps, eigval, eigvec):
     sum_w = np.sum(w_vec, axis=0)
     k_vec = w_vec / sum_w
     proj_point = eigvec.T @ k_vec.T
-    proj_point = (proj_point.T / eigval).T
+    #proj_point = (proj_point.T / eigval).T
+    proj_point = (proj_point.T * eigval).T
     #diag_mat = np.diag(1/eigval)
     #proj_point = diag_mat @ proj_point
     return np.squeeze(proj_point)
