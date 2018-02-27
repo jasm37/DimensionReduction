@@ -11,9 +11,11 @@ def get_data(name, n_samples):
     return {
         #'swiss':datasets.samples_generator.make_swiss_roll(n_samples=n_samples, noise=noise),
         'swiss':get_swiss_roll(n_samples=n_samples),
+        'c_curve':get_c_curve(n_samples=n_samples),
         'blobs':datasets.samples_generator.make_blobs(n_samples=n_samples, centers=3, n_features=3, random_state=0),
         's_curve':datasets.samples_generator.make_s_curve(n_samples=n_samples, noise=noise),
         'gaussian':get_3d_clusters(n_samples=n_samples, mean=mean, cov=covariance),
+        'gaussian_test': get_sample_3d_clusters(n_samples=n_samples, mean=mean, cov=covariance),
         'plane':get_plane(n_samples=n_samples),
         'two_planes':get_linear_surface(n_samples=n_samples),
         'torus_curve':get_toroidal_helix(n_samples=n_samples),
@@ -23,13 +25,23 @@ def get_data(name, n_samples):
     }[name]
 
 
+def get_c_curve(n_samples):
+    t = np.pi + np.pi * 2 *(np.random.rand(1, n_samples)-0.5) * 0.75
+    Y = (1 + 2*(np.random.rand(1, n_samples)-0.5))
+    X = 4*np.cos(t)
+    Z = 3*np.sin(t)
+    data = np.squeeze(np.stack((X, Y, Z), axis=1))
+    return data.T, Z
+
+
 def get_swiss_roll(n_samples):
     t = 1.5 * np.pi * (1 + 2 * np.random.rand(1, n_samples))
     X = t * np.cos(t)
-    Y = 4 * np.random.rand(1, n_samples)
+    Y = 40 * np.random.rand(1, n_samples)
     Z = t * np.sin(t)
     data = np.squeeze(np.stack((X, Y, Z), axis=1))
     return data.T, Z
+
 
 def get_plane(n_samples, rand=True):
     if rand :
@@ -58,6 +70,26 @@ def get_3d_clusters(n_samples, mean, cov):
     pos = np.empty(X.shape + (2,))
     pos[:, :, 0] = X
     pos[:, :, 1] = Y
+    rv = multivariate_normal(mean, cov)
+    Z = rv.pdf(pos)
+    X = X.reshape(-1)
+    Y = Y.reshape(-1)
+    Z = Z.reshape(-1)
+    data = np.stack((X, Y, Z), axis=1)
+    return data, Z
+
+
+def get_sample_3d_clusters(n_samples, mean, cov):
+    n = int(np.sqrt(n_samples))
+    x = np.linspace(-5.0, 4.0, n)
+    y = np.linspace(-4.0, 5.0, n)
+    X, Y = np.meshgrid(x, y)
+    pos = np.empty(X.shape + (2,))
+    pos[:, :, 0] = X
+    pos[:, :, 1] = Y
+    #X = np.random.uniform(-5.0, 4.0, n_samples)
+    #Y = np.random.uniform(-4.0, 5.0, n_samples)
+    #pos = np.vstack((X,Y)).T
     rv = multivariate_normal(mean, cov)
     Z = rv.pdf(pos)
     X = X.reshape(-1)
@@ -150,6 +182,7 @@ def get_punctured_sphere(n_samples):
     data = np.stack((X, Y, Z), axis=1)
     return data, Y
 
+
 def curve_3d(n_samples):
     p = np.linspace(0, 2*np.pi, n_samples)
     X = 3*np.cos(p)
@@ -160,6 +193,7 @@ def curve_3d(n_samples):
     Z = Z.reshape(-1)
     data = np.stack((X, Y, Z), axis=1)
     return data, Y
+
 
 def get_clustered_data():
     raise ValueError("2D plot implementation missing")
