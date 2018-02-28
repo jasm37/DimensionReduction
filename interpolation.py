@@ -4,7 +4,7 @@ import logging
 from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
 import scipy.spatial.distance as dist
 import scipy.sparse.linalg as ssl
-
+import diff_map as diffmap
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -183,35 +183,47 @@ def inv_weight(*args, data, fdata, nnbhd=10):
     return out
 
 
-def nystrom_ext(x, data, eps, eigval, eigvec):
-    # Nyström extension for outlier points.
-    # If the original space is Rn and projection space Rd,
-    # then this function maps outliers of the data from Rn to Rd
-    # similar to the DMAP dim. reduction on the data
+def nystrom_extension(x, data, dm: diffmap):
+    eps = dm.eps
+    eigvec = dm.eigvec[:,:2]
+    eigval = dm.eigval[:2]
+    density = dm.density
     x_vec = x.reshape(1, x.shape[0])
-    #d_vec = self._get_sq_distance(x_vec, data)
     d_vec = dist.cdist(x_vec, data, 'sqeuclidean')
     w_vec = np.exp(-d_vec / (eps*eps))
     sum_w = np.sum(w_vec)
-    k_vec = w_vec / sum_w
-    proj_point = eigvec.T@ k_vec.T
-    proj_point = (proj_point.T / eigval).T
-    #diag_mat = np.diag(1/eigval)
-    #proj_point = diag_mat @ proj_point
+    k_vec = w_vec / (sum_w * density)
+    sum_k = np.sum(k_vec)
+    m_vec = k_vec / sum_k
+    #k_vec = w_vec / sum_w
+    proj_point = eigvec.T@ m_vec.T
+    #proj_point = (proj_point.T / eigval).T
     return np.squeeze(proj_point)
 
 
-def mult_nystrom_ext(x, data, eps, eigval, eigvec):
+def mult_nystrom_extension(x, data, dm: diffmap):
+    """
+    Nystrom extension
+    Reference :     Diffusion Maps, Reduction Coordinates, and Low Dimensional Representation of Stochastic Systems
+                    R. R. Coifman and I. G. Kevrekidis and S. Lafon and M. Maggioni and B. Nadler
+                    http://epubs.siam.org/doi/abs/10.1137/070696325
+    :param x:   out-of-sample points to be interpolated
+    :param data:    points used for interpolation
+    :param dm:  Diffusion Maps(DM) class used for data
+    :return:    Extension of out-of-sample points in DM space
+    """
+    eps = dm.eps
+    eigvec = dm.eigvec[:, :2]
+    eigval = dm.eigval[:2]
+    density = dm.density
     x_vec = np.asarray(x)
     d_vec = dist.cdist(x_vec, data, 'sqeuclidean')
-    w_vec = np.exp(-d_vec / (eps*eps))
-    sum_w = np.sum(w_vec, axis=0)
-    k_vec = w_vec / sum_w
-    proj_point = eigvec.T @ k_vec.T
-    #proj_point = (proj_point.T / eigval).T
-    proj_point = (proj_point.T * eigval).T
-    #diag_mat = np.diag(1/eigval)
-    #proj_point = diag_mat @ proj_point
+    w_vec = np.exp(-d_vec / (eps * eps))
+    sum_w = np.sum(w_vec, axis=1)
+    k_vec = ((w_vec / density).T / sum_w).T
+    sum_k = np.sum(k_vec, axis=1)
+    m_vec = (k_vec.T / sum_k).T
+    proj_point = eigvec.T @ m_vec.T
     return np.squeeze(proj_point)
 
 

@@ -1,18 +1,13 @@
 import numpy as np
 import logging
-import numpy.linalg as LA
+
 from scipy.spatial import distance
-from scipy.interpolate import griddata, Rbf
 from scipy.sparse.linalg import eigsh
-from scipy.linalg import eigh
 from pars_rep_dm import compute_res
 import time as tm
 
-#logger = logging.getLogger(__name__)
-#logger.setLevel(logging.INFO)
 
-
-#TODO: add MORE references/bibliography
+# TODO: add MORE references/bibliography
 class DiffusionMap:
     def __init__(self, step=1, eps=0):
         self.eps = eps
@@ -27,6 +22,9 @@ class DiffusionMap:
         self.eigvec = []
         self.eigval = []
 
+        # Density vector used for Nystrom interpolation
+        self.density = []
+
         # Array containing projection of data into reduced space
         self.proj_data = []
         # Dimension of the projection space.
@@ -38,15 +36,8 @@ class DiffusionMap:
 
         # Set loggers properties
         format = "%(levelname)s:%(name)s:\t%(message)s"
-        logfile = "DiffMap.log"
-        # Write log to file
-        logging.basicConfig(filename=logfile, level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format=format)
         self.logger = logging.getLogger(__name__)
-        # Show log
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        console.setFormatter(logging.Formatter(format))
-        logging.getLogger('').addHandler(console)
 
     @staticmethod
     def get_distance_matrix(data):
@@ -55,21 +46,25 @@ class DiffusionMap:
     def _get_sq_distance(self,x, y):
         return distance.cdist(x, y, 'sqeuclidean')
 
+    def compute_ker_eig(self, ker, ndim):
+        w, x = eigsh(ker, k=ndim, which='LM', ncv=None)
+        return w, x
+
     def get_eps_from_data(self):
         # Computes epsilon parameter from distance matrix.
         # There are many ways to compute this, here only median
         # and Lafons suggestion are implemented
 
         # Median of the distances:
-        self.eps = np.sqrt(np.median(self.sq_distance))
-        '''
+        self.eps = np.median(np.sqrt(self.sq_distance))
+        #'''
         # According to Lafons dissertation page 33
         # W is squared distance matrix obtained from data
-        W = self.sq_distance
-        size = W.shape[0]
-        v = np.where(W > 0, W, W.max()).min(1)
-        self.eps = np.sqrt(np.sum(v)/size)
-        '''
+        #W = self.sq_distance
+        #size = W.shape[0]
+        #v = np.where(W > 0, W, W.max()).min(1)
+        #self.eps = np.sqrt(np.sum(v)/size)
+        #'''
 
     def get_kernel(self, eps):
         # Computes the basic kernel matrix(without normalizations)
@@ -174,23 +169,20 @@ class DiffusionMap:
         # Normalization:
         # Approximates geometry without influence of density
         vd = np.sum(K, axis=1)
+        self.density = vd
         vd = np.power(vd, -alpha)
         diag = np.diag(vd)
         _K = diag @ K @ diag
 
-        vk = np.sum(_K, axis=1)
-        diag_vk = np.diag(1/vk)
-        _K = _K @ diag_vk
-
         # Compute symmetric kernel (adjoint to the original one):
         # Better computation of eigenvalues and eigenvectors
-        vd = np.sum(_K, axis=1)
-        vd = 1 / np.sqrt(vd)
-        diag = np.diag(vd)
-        M = diag @ _K @ diag
-        #M = (M + M.T)/2
-
-
+        vk = np.sum(_K, axis=1)
+        # Optional: Create Markov Chain _mc
+        # diag_vk = np.diag(1/vk)
+        # _mc = diag_vk @ _K
+        diag_vec = np.sqrt(vk)
+        inv_diag = np.diag(1/diag_vec)
+        M = inv_diag @ _K @inv_diag
 
         # Compute first ndim+1 eigenvalues and discard the first one since it is trivial
         start = tm.time()
@@ -201,11 +193,12 @@ class DiffusionMap:
         # Get decreasing order of evectors and evalues
         w = w[::-1]
         x = x[:, ::-1]
-
+        self.eig_diag = np.copy(x)
         # Get original eigenvector(instead of the one from the symmetric kernel)
-        x = diag @ x
-        norm_x = np.diag(1/LA.norm(x,axis=0))
-        x = x @ norm_x
+        x = inv_diag @ x
+        # Optional: normalize vectors
+        #norm_x = np.diag(1/LA.norm(x,axis=0))
+        #x = x @ norm_x
 
         # first eigenvector/value is trivial
         w = w[1:]
@@ -273,6 +266,7 @@ class DiffusionMap:
         #self.constructDifMap(ndim)
         w, x = self.eigval[indices], self.eigvec[:,indices]
         y = (w[0:ndim] ** self.step) * x[:, 0:ndim]
+        #y = x[:,:ndim]
         return y
 
     def permute_indices(self, indices):

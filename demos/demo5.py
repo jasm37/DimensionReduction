@@ -7,7 +7,7 @@ from gen_data import get_data
 #from ..gen_data import get_data
 from diff_map import DiffusionMap
 import matplotlib.pyplot as plt
-from interpolation import nystrom_ext, rbf_interpolate, poly_rbf, geom_harmonics, multiscale_gm, GeometricHarmonics, inv_weight, multi_rbf
+from interpolation import *
 from interpolation import interpolate_gh_byparts
 from mpl_toolkits.mplot3d import Axes3D
 from demos.n_gh import GeometricHarmonicsInterpolator
@@ -26,7 +26,7 @@ A, color = get_data(samples, num_samples)
 #color = np.delete(color, idx)
 
 # target dimension
-ndim = 10
+ndim = 4
 # parameters for diff. maps
 step = 1
 eps = 0
@@ -66,15 +66,15 @@ nys_pred = []
 
 idx = np.random.randint(dm_coord.shape[0], size=2)
 C = dm_coord[idx,:]
-dm_coord = np.delete(dm_coord, idx,0)
-A = np.delete(A, idx,0)
-color_p = np.delete(color, idx)
-color = np.delete(color, idx)
+#dm_coord = np.delete(dm_coord, idx,0)
+#A = np.delete(A, idx,0)
+#color_p = np.delete(color, idx)
+#color = np.delete(color, idx)
 
 interp_pred = []
-eps = 1#0.001
-neig = 100
-gm_error = 0.01
+eps = 1000#0.001
+neig = 10
+gm_error = 0.1
 delta = 0.001
 
 gh = GeometricHarmonics(dm_coord[:,:2], A, eps, neig, delta=delta)
@@ -121,18 +121,19 @@ gh.load_cached_mat(eigvec, eigval, pfdata, pcoeffs, eps)
 #val, _ = gh.interpolate(C[1,:2])
 #interp_pred.append(val)
 
-#x = np.linspace(-0.02, 0.02, 50)
-#y = np.linspace(-0.02, 0.02, 50)
-x = np.linspace(-0.02, 0.02, 50)
-y = np.linspace(-0.02, 0.02, 50)
+x = np.linspace(-0.02, 0.02, 30)
+y = np.linspace(-0.02, 0.02, 30)
+#x = np.linspace(-0.04, 0.04, 20)
+#y = np.linspace(-0.04, 0.04, 20)
 X, Y = np.meshgrid(x, y)
 X = X.reshape(-1)
 Y = Y.reshape(-1)
 data = np.stack((X, Y), axis=1)
 list_data = np.ndarray.tolist(data)
 mult_val_1 = gh.mult_interpolate(list_data)
-#mult_val_2 = inv_weight(list_data, data=dm_coord[:,:2], fdata=A)
-mult_val_2 = multi_rbf(list_data, data=dm_coord[:,:2], fdata=A, eps=0.0001)
+mult_val_2 = inv_weight(list_data, data=dm_coord[:,:2], fdata=A)
+#mult_val_2 = multi_rbf(list_data, data=dm_coord[:,:2], fdata=A, eps=0.0001)
+#mult_val_2 = mult_nystrom_ext(data, data=dm_coord[:,:2], eps=gh.eps, eigval=100, eigvec=dm.eigvec)
 #gh_int = GeometricHarmonicsInterpolator(points=dm_coord[:,:2], values=A, epsilon=0.001)
 #mult_val_2 = gh_int(list_data)
 #mult_val_2 = interpolate_gh_byparts(dm_coord[:,:2], A, list_data, neig=6, nnbhd=10, gm_error=0.001)
@@ -147,8 +148,10 @@ mult_val_2 = multi_rbf(list_data, data=dm_coord[:,:2], fdata=A, eps=0.0001)
 fig = plt.figure(figsize=(10, 5))
 ax = fig.add_subplot(121, projection='3d')
 ax.scatter(A[:,0], A[:,1], A[:,2], c = color, cmap = plt.cm.Spectral)
+plt.title("Original Data")
 ax = fig.add_subplot(122, projection='3d')
 ax.scatter(gh.proj_fdata.T[:,0], gh.proj_fdata.T[:,1], gh.proj_fdata.T[:,2], c = color, cmap = plt.cm.Spectral)
+plt.title("Geom. Harmonics data")
 plt.show()
 
 fig = plt.figure(figsize=(15, 5))
@@ -160,17 +163,19 @@ ax = fig.add_subplot(131, projection='3d')
 #ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c="black", marker='<', s=60)
 #ax.scatter(mult_val[:,0], mult_val[:,1], mult_val[:,2], c=mult_val[:,2], cmap=plt.cm.Spectral)
 ax.scatter(mult_val_1[:,0], mult_val_1[:,1], mult_val_1[:,2], c=mult_val_1[:,2], cmap=plt.cm.Spectral)
+plt.title('Geometric Harmonics')
 
 ax = fig.add_subplot(132, projection='3d')
 ax.scatter(mult_val_2[:,0], mult_val_2[:,1], mult_val_2[:,2], c=mult_val_2[:,2], cmap=plt.cm.Spectral)
-plt.title('Original data')
+plt.title('2nd interpolation method')
 
 ax = fig.add_subplot(133)
-plt.scatter(dm_coord[:,0], dm_coord[:,1], c=color_p, cmap=plt.cm.Spectral)
+plt.scatter(dm_coord[:,0], dm_coord[:,1], c=color, cmap=plt.cm.Spectral)
 #plt.scatter(pred[0][0], pred[0][1], marker='x', s=40)
 plt.scatter(C[0,0], C[0,1], c="black",marker='x', s=40)
 #plt.scatter(pred[1][0], pred[1][1], marker='v', s=40)
 plt.scatter(C[1,0], C[1,1], c="black",marker='x', s=40)
+plt.title('DM data')
 #plt.scatter(nys_pred[0][0], nys_pred[0][1], marker='o', s=40)
 #plt.scatter(nys_pred[1][0], nys_pred[1][1], marker='o', s=40)
 #plt.scatter(dm_coord[k1, 0], dm_coord[k1, 1], color='b', marker='>', s=40)

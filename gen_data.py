@@ -81,8 +81,8 @@ def get_3d_clusters(n_samples, mean, cov):
 
 def get_sample_3d_clusters(n_samples, mean, cov):
     n = int(np.sqrt(n_samples))
-    x = np.linspace(-5.0, 4.0, n)
-    y = np.linspace(-4.0, 5.0, n)
+    x = np.linspace(-7.0, 6.0, n)
+    y = np.linspace(-6.0, 7.0, n)
     X, Y = np.meshgrid(x, y)
     pos = np.empty(X.shape + (2,))
     pos[:, :, 0] = X

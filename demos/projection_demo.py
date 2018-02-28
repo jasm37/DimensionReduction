@@ -42,6 +42,15 @@ nys_pred = []
 idx = np.random.randint(dm_coord.shape[0], size=2)
 C = dm_coord[idx,:]
 
+x = np.linspace(-0.02, 0.02, 30)
+y = np.linspace(-0.02, 0.02, 30)
+
+X, Y = np.meshgrid(x, y)
+X = X.reshape(-1)
+Y = Y.reshape(-1)
+data = np.stack((X, Y), axis=1)
+list_data = np.ndarray.tolist(data)
+
 eps = 1#0.001
 neig = 200
 gm_error = 0.001
@@ -55,26 +64,11 @@ print("Frob. error is ", gh.fro_error)
 print("Selected eps is ", gh.eps)
 print("Num of eigvectors is ", len(gh.eigval))
 
-x = np.linspace(-0.02, 0.02, 30)
-y = np.linspace(-0.02, 0.02, 30)
-
-X, Y = np.meshgrid(x, y)
-X = X.reshape(-1)
-Y = Y.reshape(-1)
-data = np.stack((X, Y), axis=1)
-list_data = np.ndarray.tolist(data)
-
-###
-xx = A[0,:]
-yy = dm.proj_data[0,:2]
-zz = nystrom_ext(xx, data=A, eps=eps, eigvec=dm.eigvec[:,:2], eigval=dm.eigval[:2]).T
-print(yy, zz)
-###
-
 mult_val_1 = gh.mult_interpolate(test)
 #mult_val_2 = inv_weight(test, data=A, fdata=dm_coord[:,:2])
 eps = dm.eps
-mult_val_2 = mult_nystrom_ext(test, data=A, eps=eps, eigvec=dm.proj_data[:,:2], eigval=dm.eigval[:2]).T
+#mult_val_2 = mult_nystrom_ext(test, data=A, eps=eps, eigvec=dm.proj_data[:,:2], eigval=dm.eigval[:2]).T
+mult_val_2 = mult_nystrom_extension(test, data=A, dm=dm).T
 
 fig = plt.figure(figsize=(10, 5))
 ax = fig.add_subplot(121)#, projection='3d')

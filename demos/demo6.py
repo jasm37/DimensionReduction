@@ -8,7 +8,7 @@ from pars_rep_dm import compute_res
 import numpy as np
 # Demo to check parsimonious representation of eigenvectors/values
 
-sample = 'punc_sphere'
+sample = 'c_curve'#'punc_sphere'
 A, color = get_data(sample, 1000)
 
 # target dimension
@@ -24,7 +24,7 @@ w, x = diff_map.dim_reduction(ndim=ndim)
 fig = plt.figure(figsize=(12, 8))
 ax = fig.add_subplot(231, projection='3d')
 ax.set_title("Original 3D data")
-ax.scatter(A[:,0], A[:,1], A[:,2], c=x[:,0], cmap = plt.cm.Spectral)
+ax.scatter(A[:,0], A[:,1], A[:,2], c=color, cmap = plt.cm.Spectral)
 
 ax = fig.add_subplot(232)
 ax.set_title("Diffusion Maps")

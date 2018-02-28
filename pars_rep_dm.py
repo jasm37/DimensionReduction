@@ -48,7 +48,7 @@ def compute_res(V, eps_scale=5):
     indices = np.argsort(RES)
     indices = indices[::-1]
     logging.basicConfig(level=logging.INFO)
-    logging.info("\tInitial order or residuals is \n%s ", str(RES).strip('[]'))
-    logging.info("\tSorted residuals are \n%s ", str(RES[indices]).strip('[]'))
-    logging.info("\tRespective sorted indices are \n%s ", str(indices).strip('[]'))
+    #logging.info("\tInitial order or residuals is \n\t%s ", str(RES).strip('[]'))
+    #logging.info("\tSorted residuals are \n\t%s ", str(RES[indices]).strip('[]'))
+    logging.info("\tSorted indices are %s ", str(indices).strip('[]'))
     return np.squeeze(RES), indices
