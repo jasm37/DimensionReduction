@@ -4,7 +4,7 @@ import logging
 from scipy.interpolate import Rbf, InterpolatedUnivariateSpline
 import scipy.spatial.distance as dist
 import scipy.sparse.linalg as ssl
-import diff_map as diffmap
+#import diff_map as diffmap
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -183,7 +183,7 @@ def inv_weight(*args, data, fdata, nnbhd=10):
     return out
 
 
-def nystrom_extension(x, data, dm: diffmap):
+def nystrom_extension(x, data, dm):
     eps = dm.eps
     eigvec = dm.eigvec[:,:2]
     eigval = dm.eigval[:2]
@@ -201,20 +201,20 @@ def nystrom_extension(x, data, dm: diffmap):
     return np.squeeze(proj_point)
 
 
-def mult_nystrom_extension(x, data, dm: diffmap):
-    """
-    Nystrom extension
+def mult_nystrom_extension(x, data, dm, n_comp):
+    """Nystrom extension
     Reference :     Diffusion Maps, Reduction Coordinates, and Low Dimensional Representation of Stochastic Systems
                     R. R. Coifman and I. G. Kevrekidis and S. Lafon and M. Maggioni and B. Nadler
                     http://epubs.siam.org/doi/abs/10.1137/070696325
     :param x:   out-of-sample points to be interpolated
     :param data:    points used for interpolation
     :param dm:  Diffusion Maps(DM) class used for data
+    :param n_comp: number of components used with DM
     :return:    Extension of out-of-sample points in DM space
     """
     eps = dm.eps
-    eigvec = dm.eigvec[:, :2]
-    eigval = dm.eigval[:2]
+    eigvec = dm.eigvec[:, :n_comp]
+    eigval = dm.eigval[:n_comp]
     density = dm.density
     x_vec = np.asarray(x)
     d_vec = dist.cdist(x_vec, data, 'sqeuclidean')

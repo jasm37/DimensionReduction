@@ -193,7 +193,7 @@ class DiffusionMap:
         # Get decreasing order of evectors and evalues
         w = w[::-1]
         x = x[:, ::-1]
-        self.eig_diag = np.copy(x)
+
         # Get original eigenvector(instead of the one from the symmetric kernel)
         x = inv_diag @ x
         # Optional: normalize vectors
