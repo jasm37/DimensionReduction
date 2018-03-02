@@ -53,7 +53,7 @@ list_data = np.ndarray.tolist(data)
 
 eps = 1000000#0.001
 neig = 100
-gm_error = 0.001#0.001
+gm_error = 1e-4#0.001
 delta = 0.0000000001#0.000001#0#0.001
 
 #gh = GeometricHarmonics(dm_coord[:,:2], A, eps, neig, delta=delta)
@@ -65,15 +65,12 @@ print("Selected eps is ", gh.eps_vec)
 print("Num of eigvectors is ", len(gh.eigval))
 
 mult_val_1 = gh._iterative_interpolate(test)
-#mult_val_2 = inv_weight(test, data=A, fdata=dm_coord[:,:2])
 eps = dm.eps
-#mult_val_2 = mult_nystrom_ext(test, data=A, eps=eps, eigvec=dm.proj_data[:,:2], eigval=dm.eigval[:2]).T
 mult_val_2 = mult_nystrom_extension(test, data=A, dm=dm, n_comp=2).T
 
 fig = plt.figure(figsize=(10, 5))
 ax = fig.add_subplot(121)#, projection='3d')
 ax.scatter(dm.proj_data[:,0], dm.proj_data[:,1], c=color, cmap=plt.cm.Spectral)
-#ax.scatter(dm.eigvec[:,0], dm.eigvec[:,1], c=color, cmap=plt.cm.Spectral)
 plt.title("Original Data")
 
 ax = fig.add_subplot(122)#, projection='3d')

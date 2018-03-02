@@ -52,15 +52,8 @@ class GeometricHarmonics():
         self.proj_coeffs = np.full_like(fdata[0], 0)
 
         format = "%(levelname)s:%(name)s:\t%(message)s"
-        logfile = "GeomHarm.log"
-        # Write log to file
-        logging.basicConfig(filename=logfile, level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG, format=format)
         self.logger = logging.getLogger(__name__)
-        # Show log
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        console.setFormatter(logging.Formatter(format))
-        logging.getLogger('').addHandler(console)
 
     def load_cached_mat(self, eigvec, eigval, proj_fdata, proj_coeffs, eps):
         assert eigval.shape[0] == self.neig and eigvec.shape[1] == self.neig, \
@@ -83,6 +76,10 @@ class GeometricHarmonics():
         return self.eigval, self.eigvec
 
     def _iterative_fit(self):
+        """Fit per variable
+            Performs fit for all variables and stores results in the respective lists
+            to be analysed in multiscale_var_fit
+        """
         self.ker_matrix = np.exp(-self.dist_mat / self.eps)
         eigval, eigvec = self._compute_eigv(self.ker_matrix, self.neig)
         proj_coeffs = (self.fdata.T @ eigvec).T
@@ -90,10 +87,30 @@ class GeometricHarmonics():
         proj_farray = np.zeros((self.n_fdim, self.n_elems))
         for i in range(self.n_fdim):
             proj_farray[i,:] = np.sum(eigvec*proj_coeffs[:,i], axis=1)
-        proj_fdata = proj_farray
-        self.fro_error_list = np.linalg.norm(proj_fdata.T-self.fdata, axis=0)
+        self.fro_error_list = np.linalg.norm(proj_farray.T-self.fdata, axis=0)
         self.eigvec_list.append(eigvec)
         self.eigval_list.append(eigval)
+
+    def _iterative_interpolate(self, *args):
+        """Performs interpolation per variable
+        """
+        # TODO 1: Can only be called if mult_var_fir was used first(not multiscale_fit)
+        # TODO 2: Vectorize(using 3D array) instead of using for loop(only if possible)
+        x_vec = np.squeeze(np.asarray(args))
+        n_interpolands = x_vec.shape[0]
+        dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
+        ext_array = np.zeros((n_interpolands, self.n_fdim))
+        for i in range(self.n_fdim):
+            loc_eigvec = self.eigvec_list[i]
+            loc_eigval = self.eigval_list[i]
+            loc_f = self.fdata[:, i]
+            loc_pf = np.inner(loc_f, loc_eigvec.T)
+            self.proj_fdata[:, i] = loc_eigvec @ loc_pf
+            ker_mat = np.exp(-dist_vec / self.eps_vec[i])
+            loc_phi = (1/loc_eigval) * (ker_mat@loc_eigvec)
+            loc_approx = loc_pf @loc_phi.T
+            ext_array[:, i] = loc_approx
+        return ext_array
 
     def fit(self):
         self.ker_matrix = np.exp(-self.dist_mat / self.eps)
@@ -103,7 +120,7 @@ class GeometricHarmonics():
         proj_farray = np.zeros((self.n_fdim, self.n_elems))
         for i in range(self.n_fdim):
             proj_farray[i, :] = np.sum(self.eigvec * self.proj_coeffs[:, i], axis=1)
-        self.proj_fdata = proj_farray
+        self.proj_fdata = proj_farray.T
         self.fro_error = np.linalg.norm(self.proj_fdata.T - self.fdata)
 
     def interpolate(self, x, eps=None):
@@ -121,24 +138,6 @@ class GeometricHarmonics():
         for i in range(self.n_fdim):
             ext_array[i] = np.sum(self.proj_coeffs[:,i]*ext_eigvec, axis=1)
         return ext_array#, self.proj_fdata
-
-    def _iterative_interpolate(self, *args):
-        x_vec = np.squeeze(np.asarray(args))
-        n_interpolands = x_vec.shape[0]
-        dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
-        ext_array = np.zeros((n_interpolands, self.n_fdim))
-        for i in range(self.n_fdim):
-            loc_eigvec = self.eigvec_list[i]    #####
-            loc_eigval = self.eigval_list[i]    #####
-            loc_f = self.fdata[:, i]            #####
-            loc_pf = np.inner(loc_f, loc_eigvec.T)  ####
-            #loc_pf = np.inner(loc_eigvec, loc_f)
-            self.proj_fdata[:, i] = loc_eigvec @ loc_pf ####
-            ker_mat = np.exp(-dist_vec / self.eps_vec[i])
-            loc_phi = (1/loc_eigval) * (ker_mat@loc_eigvec)
-            loc_approx = loc_pf @loc_phi.T
-            ext_array[:, i] = loc_approx
-        return ext_array  # , self.proj_fdata
 
     def mult_interpolate(self, *args, eps=None):
         # If no eps is given then use self.eps
@@ -179,9 +178,9 @@ class GeometricHarmonics():
             self.eps = eps_list[pos]
             self.fit()
 
-        #self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
-
     def multiscale_var_fit(self, error):
+        # pos stores what eigendecomposition results in the smallest residue per component
+        pos = [0] * self.n_fdim
         if all(ferror == 0 for ferror in self.fro_error_list):
             self._iterative_fit()
 
@@ -190,25 +189,34 @@ class GeometricHarmonics():
         error_list = [self.fro_error_list]
         current_err = self.fro_error_list
 
-        while all(ferror > error for ferror in current_err) and count < self.max_count:
+        # If one residual is bigger than error then continue process.
+        # Residuals will be computed for all components
+        # TODO: Use some data structure to make this faster.
+        #       Currently storing all results(eigendecompositions and epsilons)
+        while max(current_err) > error and count < self.max_count:
             count += 1
             self.eps /= 2
             self._iterative_fit()
             eps_list.append(self.eps)
+            # TODO: Use np.argmin command for lists instead of converting to array
             error_list.append(self.fro_error_list)
             error_arr = np.asarray(error_list)
             pos = np.argmin(error_arr, axis=0)
             current_err = error_arr[pos, np.arange(len(pos))]
 
-        #eigval_arr = np.asarray(self.eigval_list)[pos]
-        #eigvec_arr = np.asarray(self.eigvec_list)[pos]
-        #pos = np.argmin(error_arr, axis=0)
+        # Assign selected eigenvalues/vectors and epsilons for weight matrices
         self.f_scale_args = pos
         self.eps_vec = np.asarray([eps_list[ind] for ind in pos])
         self.eigval_list = [self.eigval_list[ind] for ind in pos]
         self.eigvec_list = [self.eigvec_list[ind] for ind in pos]
-        #self.fit()
-
+        # Print eps and residuals
+        max_pos = np.argmax(self.eps_vec)
+        min_pos = np.argmin(self.eps_vec)
+        max_err = np.max(current_err)
+        min_err = np.min(current_err)
+        self.logger.info('Max and min pos and values (%d, %f) and (%d, %f)'
+                         % (max_pos, self.eps_vec[max_pos], min_pos, self.eps_vec[min_pos]))
+        self.logger.info('Max and min errors %f, %f' % (max_err, min_err ))
 
 def nnbhd_mean(*args, data, fdata, nnbhd=10):
     x_array = np.squeeze(np.asarray(args))
