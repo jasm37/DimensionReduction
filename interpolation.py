@@ -95,9 +95,13 @@ class GeometricHarmonics():
         """Performs interpolation per variable
         """
         # TODO 1: Can only be called if mult_var_fir was used first(not multiscale_fit)
-        # TODO 2: Vectorize(using 3D array) instead of using for loop(only if possible)
+        # TODO 2: Vectorize(using tensors/3d arrays) instead of using for loop(only if possible)
         x_vec = np.squeeze(np.asarray(args))
         n_interpolands = x_vec.shape[0]
+        one_comp = False
+        if x_vec.ndim == 1:
+            one_comp = True
+            x_vec = x_vec.reshape(1, n_interpolands)
         dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
         ext_array = np.zeros((n_interpolands, self.n_fdim))
         for i in range(self.n_fdim):
@@ -110,6 +114,9 @@ class GeometricHarmonics():
             loc_phi = (1/loc_eigval) * (ker_mat@loc_eigvec)
             loc_approx = loc_pf @loc_phi.T
             ext_array[:, i] = loc_approx
+        # TODO 3: (Bug)If only one point is interpolated then the result should be 1-dimensional
+        if one_comp:
+            ext_array = ext_array[0,:]
         return ext_array
 
     def fit(self):
@@ -191,14 +198,14 @@ class GeometricHarmonics():
 
         # If one residual is bigger than error then continue process.
         # Residuals will be computed for all components
-        # TODO: Use some data structure to make this faster.
+        # TODO 1: Use some data structure to make this faster.
         #       Currently storing all results(eigendecompositions and epsilons)
         while max(current_err) > error and count < self.max_count:
             count += 1
             self.eps /= 2
             self._iterative_fit()
             eps_list.append(self.eps)
-            # TODO: Use np.argmin command for lists instead of converting to array
+            # TODO 2: Use np.argmin command for lists instead of converting to array
             error_list.append(self.fro_error_list)
             error_arr = np.asarray(error_list)
             pos = np.argmin(error_arr, axis=0)
@@ -209,7 +216,9 @@ class GeometricHarmonics():
         self.eps_vec = np.asarray([eps_list[ind] for ind in pos])
         self.eigval_list = [self.eigval_list[ind] for ind in pos]
         self.eigvec_list = [self.eigvec_list[ind] for ind in pos]
+
         # Print eps and residuals
+        '''
         max_pos = np.argmax(self.eps_vec)
         min_pos = np.argmin(self.eps_vec)
         max_err = np.max(current_err)
@@ -217,6 +226,7 @@ class GeometricHarmonics():
         self.logger.info('Max and min pos and values (%d, %f) and (%d, %f)'
                          % (max_pos, self.eps_vec[max_pos], min_pos, self.eps_vec[min_pos]))
         self.logger.info('Max and min errors %f, %f' % (max_err, min_err ))
+        '''
 
 def nnbhd_mean(*args, data, fdata, nnbhd=10):
     x_array = np.squeeze(np.asarray(args))
@@ -417,7 +427,7 @@ def poly_rbf(x, data, fdata, power=2, nnbhd=10, eps=1):
     return interp, indices
 
 
-def interpolate_gh_byparts(data, fdata, interpoland, neig, nnbhd, gm_error):
+def interpolate_gh_byparts(data, fdata, interpoland, eps, delta, neig, nnbhd, gm_error):
     interpoland = np.asarray(interpoland)
     dist_vec = dist.cdist(interpoland, data, 'sqeuclidean')
     result_array = np.zeros((interpoland.shape[0],fdata.shape[1]))
@@ -425,9 +435,11 @@ def interpolate_gh_byparts(data, fdata, interpoland, neig, nnbhd, gm_error):
         temp = np.argsort(dist_vec[i, :])[:nnbhd]
         local_data = data[temp]
         local_fdata = fdata[temp]
-        gh = GeometricHarmonics(local_data, local_fdata, eps=1000, neig=neig)
-        gh.multiscale_fit(gm_error)
-        result = gh.interpolate(interpoland[i])
+        gh = GeometricHarmonics(local_data, local_fdata, eps=eps, neig=neig, delta=delta)
+        #gh.multiscale_fit(gm_error)
+        gh.multiscale_var_fit(gm_error)
+        #result = gh.interpolate(interpoland[i])
+        result = gh._iterative_interpolate(interpoland[i])
         #result_list.append(result)
         result_array[i,:] = result
     return result_array
