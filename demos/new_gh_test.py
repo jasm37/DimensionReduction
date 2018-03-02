@@ -9,7 +9,7 @@ from interpolation import *
 from mpl_toolkits.mplot3d import Axes3D
 
 samples = 'gaussian_test'
-num_samples = 100
+num_samples = 3000
 test, color_2 = get_data(samples, num_samples)
 
 # Simple script to test diff. maps dimension reduction
@@ -51,14 +51,14 @@ Y = Y.reshape(-1)
 data = np.stack((X, Y), axis=1)
 list_data = np.ndarray.tolist(data)
 
-eps = 10000#0.001
-neig = 200
-gm_error = 0.001
-delta = 0.001
+eps = 1000000#0.001
+neig = 100
+gm_error = 0.001#0.001
+delta = 0.0000000001#0.000001#0#0.001
 
 #gh = GeometricHarmonics(dm_coord[:,:2], A, eps, neig, delta=delta)
 gh = GeometricHarmonics(A, dm_coord[:,:2], eps, neig, delta=delta)
-gh.mult_multiscale_fit(gm_error)
+gh.multiscale_var_fit(gm_error)
 
 print("Frob. error is ", gh.fro_error_list)
 print("Selected eps is ", gh.eps_vec)
@@ -77,7 +77,8 @@ ax.scatter(dm.proj_data[:,0], dm.proj_data[:,1], c=color, cmap=plt.cm.Spectral)
 plt.title("Original Data")
 
 ax = fig.add_subplot(122)#, projection='3d')
-ax.scatter(gh.proj_fdata.T[:,0], gh.proj_fdata.T[:,1], c=color, cmap=plt.cm.Spectral)
+#ax.scatter(gh.proj_fdata.T[:,0], gh.proj_fdata.T[:,1], c=color, cmap=plt.cm.Spectral)
+ax.scatter(gh.proj_fdata[:,0], gh.proj_fdata[:,1], c=color, cmap=plt.cm.Spectral)
 plt.title("Geom. Harmonics data")
 plt.show()
 

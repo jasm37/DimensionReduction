@@ -126,22 +126,18 @@ class GeometricHarmonics():
         x_vec = np.squeeze(np.asarray(args))
         n_interpolands = x_vec.shape[0]
         dist_vec = dist.cdist(x_vec, self.data, 'sqeuclidean')
-        #outer = np.outer(1/self.eps_vec, -dist_vec)
-        #ker_vec = np.exp(outer)
-
         ext_array = np.zeros((n_interpolands, self.n_fdim))
-        # Compute extension of eigvectors
         for i in range(self.n_fdim):
-            loc_eigvec = self.eigvec_list[i]
-            loc_eigval = self.eigval_list[i]
-            loc_f = self.fdata[:,i]
-            ker_vec = np.exp(-dist_vec / self.eps_vec[i])
-            loc_phi = ker_vec @ loc_eigvec / loc_eigval
-            loc_pf = loc_eigvec.T * loc_f
-            # loc_pf = np.sum((loc_eigvec.T * loc_f) * loc_eigvec.T, axis=1)
-            #self.proj_fdata[:,i] = np.sum((loc_eigvec.T * loc_f) * loc_eigvec.T, axis=1)
-            self.proj_fdata[:, i] = np.sum(loc_eigvec * (loc_f.T @ loc_eigvec).T[:, i], axis=1)
-            ext_array[:,i] = np.sum(loc_pf * loc_phi, axis=1)
+            loc_eigvec = self.eigvec_list[i]    #####
+            loc_eigval = self.eigval_list[i]    #####
+            loc_f = self.fdata[:, i]            #####
+            loc_pf = np.inner(loc_f, loc_eigvec.T)  ####
+            #loc_pf = np.inner(loc_eigvec, loc_f)
+            self.proj_fdata[:, i] = loc_eigvec @ loc_pf ####
+            ker_mat = np.exp(-dist_vec / self.eps_vec[i])
+            loc_phi = (1/loc_eigval) * (ker_mat@loc_eigvec)
+            loc_approx = loc_pf @loc_phi.T
+            ext_array[:, i] = loc_approx
         return ext_array  # , self.proj_fdata
 
     def mult_interpolate(self, *args, eps=None):
@@ -185,7 +181,7 @@ class GeometricHarmonics():
 
         #self.logger.info("Multiscale fit stopped after %d out of %d iterations, eps %f and error %f ", count, self.max_count, self.eps, self.fro_error)
 
-    def mult_multiscale_fit(self, error):
+    def multiscale_var_fit(self, error):
         if all(ferror == 0 for ferror in self.fro_error_list):
             self._iterative_fit()
 
