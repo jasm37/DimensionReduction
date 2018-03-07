@@ -39,17 +39,17 @@ class GeometricHarmonics():
         self.max_count = 30
 
         self.fro_error = 0
-        self.fro_error_list = np.full_like(fdata[0], 0)
+        self.fro_error_list = np.full_like(fdata[0].reshape(self.n_fdim, 1), 0)
         self.eigval_list = []
         self.eigvec_list = []
         self.proj_coeffs_list = []
-        self.eps_vec = [self.eps]*fdata.shape[1]
+        self.eps_vec = [self.eps]*self.n_fdim
 
         self.eigval = []
         self.eigvec = []
         self.ker_matrix = []
-        self.proj_fdata = np.full_like(fdata, 0)
-        self.proj_coeffs = np.full_like(fdata[0], 0)
+        self.proj_fdata = np.full_like(fdata.reshape(self.n_elems, self.n_fdim), 0)
+        self.proj_coeffs = np.full_like(fdata[0].reshape(self.n_fdim, 1), 0)
 
         format = "%(levelname)s:%(name)s:\t%(message)s"
         logging.basicConfig(level=logging.DEBUG, format=format)
@@ -218,7 +218,6 @@ class GeometricHarmonics():
         self.eigvec_list = [self.eigvec_list[ind] for ind in pos]
 
         # Print eps and residuals
-        '''
         max_pos = np.argmax(self.eps_vec)
         min_pos = np.argmin(self.eps_vec)
         max_err = np.max(current_err)
@@ -226,7 +225,7 @@ class GeometricHarmonics():
         self.logger.info('Max and min pos and values (%d, %f) and (%d, %f)'
                          % (max_pos, self.eps_vec[max_pos], min_pos, self.eps_vec[min_pos]))
         self.logger.info('Max and min errors %f, %f' % (max_err, min_err ))
-        '''
+
 
 def nnbhd_mean(*args, data, fdata, nnbhd=10):
     x_array = np.squeeze(np.asarray(args))
@@ -629,10 +628,11 @@ def plot_inner_circle():
     # delta << 1
     delta = 0.00001#0.001
     gh = GeometricHarmonics(XY, Z, eps=eps, neig=neig, delta=delta)
-    gh.multiscale_fit(gm_error)
-    print("Frob error is ", gh.fro_error)
-    print("Frob eps is ", gh.eps)
-    print("Number of eigvalues is ", len(gh.eigval))
+    #gh.multiscale_fit(gm_error)
+    gh.multiscale_var_fit(gm_error)
+    #print("Frob error is ", gh.fro_error)
+    #print("Frob eps is ", gh.eps)
+    #print("Number of eigvalues is ", len(gh.eigval))
     nsamples = 100
 
     width = height = 2
@@ -646,7 +646,8 @@ def plot_inner_circle():
     s_arr = np.array([1.0,1.0])
     sz = gh.interpolate(s_arr)
 
-    mult_val = gh.mult_interpolate(data)
+    #mult_val = gh.mult_interpolate(data)
+    mult_val = gh._iterative_interpolate(data)
     mult_val = np.squeeze(np.asarray(mult_val))
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
