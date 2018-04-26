@@ -11,7 +11,7 @@ from pars_rep_dm import compute_res
 ## and main matlab code :
 ##  http://ronen.net.technion.ac.il/files/2016/07/DsilvaACHA.zip
 
-sample = 'plane'
+sample = 'gaussian'
 data, color = get_data(sample, 2000)
 '''
 A = np.random.rand(500,3)

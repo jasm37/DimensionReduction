@@ -21,11 +21,11 @@ ndim = 10
 step = 1
 
 # Diff. Map computation and plot
-diff_map = DiffusionMap(step)
-diff_map.set_params(A)
-w, x = diff_map.dim_reduction(ndim,pars=True)
-diff_map.compute_eigdecomp(ndim)
-
+dm1 = DiffusionMap(step)
+dm1.set_params(A)
+w, x = dm1.dim_reduction(ndim,pars=True)
+#diff_map.compute_eigdecomp(ndim)
+#diff_map.dim_reduction(ndim,pars=False)
 # Plot original 3D data
 fig = plt.figure(figsize=(8, 20))
 ax = fig.add_subplot(131)
@@ -41,7 +41,10 @@ plt.scatter(x[:, 0], x[:, 1], cmap=plt.cm.Spectral)
 
 ax = fig.add_subplot(133)
 ax.set_title("Diffusion Maps")
-w, x = diff_map.dim_reduction(ndim,pars=False)
+eps = dm1.eps
+dm2 = DiffusionMap(step,eps)
+dm2.set_params(A)
+w, x = dm2.dim_reduction(ndim,pars=False)
 plt.scatter(x[:, 0], x[:, 1], cmap=plt.cm.Spectral)
 
 plt.show()

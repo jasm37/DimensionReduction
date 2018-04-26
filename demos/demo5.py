@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from interpolation import *
 from interpolation import interpolate_gh_byparts
 from mpl_toolkits.mplot3d import Axes3D
-from demos.n_gh import GeometricHarmonicsInterpolator
 
 
 # Simple script to test diff. maps dimension reduction

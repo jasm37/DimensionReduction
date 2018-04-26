@@ -18,7 +18,7 @@ diff_map = DiffusionMap()
 diff_map.set_params(joint_data)
 w, x = diff_map.dim_reduction(ndim)
 
-'''
+
 fig = plt.figure(figsize=(10, 5))
 ax1 = fig.add_subplot(211)
 ax1.set_title("Ambient Space")
@@ -33,9 +33,9 @@ plt.colorbar()
 
 ax2 = fig.add_subplot(212)
 ax2.set_title("Diffusion Maps")
-'''
-fig = plt.figure(figsize=(10,10))
-ax2 = fig.add_subplot(111)
+
+#fig = plt.figure(figsize=(10,10))
+#ax2 = fig.add_subplot(111)
 ax2.set_title("Diffusion Maps")
 
 i=0
