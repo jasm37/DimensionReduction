@@ -4,7 +4,7 @@ Dimension Reduction experiments, especially Diffusion maps(DM)
 ## Required Python libraries
   - SciPy
   - Scikit-learn
-  - 
+  - Matplotlib
   
 ## Demos
 In most demos, the string ``samples`` should be changed according to samples in ``gen_data.py``
